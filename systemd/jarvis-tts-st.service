@@ -1,5 +1,5 @@
 [Unit]
-Description=JARVIS - synthese vocale Supertonic 3 (Supertone, 10 voix natives)
+Description=Michel - synthese vocale Supertonic 3 (Supertone, 10 voix natives)
 
 [Service]
 WorkingDirectory=@APP@

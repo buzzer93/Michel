@@ -1,5 +1,5 @@
 [Unit]
-Description=JARVIS - reconnaissance vocale (whisper.cpp, Vulkan)
+Description=Michel - reconnaissance vocale (whisper.cpp, CUDA RTX 4070)
 
 [Service]
 WorkingDirectory=@APP@/vendor/whisper.cpp

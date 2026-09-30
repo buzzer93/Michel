@@ -1,5 +1,5 @@
 [Unit]
-Description=JARVIS - reconnaissance vocale precise (whisper large-v3-turbo, Vulkan)
+Description=Michel - reconnaissance vocale precise (whisper large-v3-turbo, CUDA RTX 4070)
 
 [Service]
 WorkingDirectory=@APP@/vendor/whisper.cpp

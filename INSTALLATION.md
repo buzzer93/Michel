@@ -1,4 +1,4 @@
-# Installation — assistant vocal JARVIS pour OpenClaw
+# Installation — assistant vocal Michel pour OpenClaw
 
 Tout vit dans le dossier du dépôt (ci-dessous `app/`, où que vous l'ayez cloné : `bin/jarvis install` écrit les chemins réels dans les unités systemd). Une fois installés, les services démarrent seuls à l'allumage : cette page sert à comprendre, réinstaller ou déplacer l'outil.
 

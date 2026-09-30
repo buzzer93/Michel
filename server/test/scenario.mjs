@@ -3,9 +3,10 @@
 // Two agents in parallel, "stop" while one speaks, then "annule": the first two agents of the roster.
 import WebSocket from "ws";
 import { readFileSync } from "node:fs";
-import { loadAgents } from "../agents.mjs";
+import { loadAgents, delegationTargets } from "../agents.mjs";
 const APP = new URL("../../", import.meta.url).pathname;
-const { agents } = loadAgents({ app: APP, ocCfg: JSON.parse(readFileSync(`${process.env.HOME}/.openclaw/openclaw.json`, "utf8")) });
+const ocCfg = JSON.parse(readFileSync(`${process.env.HOME}/.openclaw/openclaw.json`, "utf8"));
+const { agents } = loadAgents({ app: APP, ocCfg, excludeIds: delegationTargets(ocCfg) });
 if (agents.length < 2) { console.error("scénario : il faut au moins deux agents"); process.exit(2); }
 const [A, B] = agents; // A runs a long task, B answers quickly meanwhile
 const ws = new WebSocket("ws://127.0.0.1:8480/ws");

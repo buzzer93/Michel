@@ -344,7 +344,7 @@ $("gate-btn").onclick = async () => {
   $("gate").classList.add("open");
   setTimeout(() => $("gate").remove(), 900);
   awake = true;
-  $("agent-name").textContent = "J.A.R.V.I.S";
+  $("agent-name").textContent = "Michel";
   $("avatar-img").hidden = true; $("avatar-sigil").innerHTML = openclawSigilSvg("#38bdf8");
   refreshState();
   // Ignition: impact of the soundtrack + orb flash + a shockwave centred on the orb.

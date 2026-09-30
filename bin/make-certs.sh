@@ -6,11 +6,10 @@ set -euo pipefail
 APP="$(cd "$(dirname "$0")/.." && pwd)"
 export CAROOT="$APP/certs"
 mkdir -p "$CAROOT"
-MKCERT="$APP/vendor/mkcert"
-if [ ! -x "$MKCERT" ]; then
-  echo "Téléchargement de mkcert…"
-  curl -fsSL -o "$MKCERT" "https://dl.filippo.io/mkcert/latest?for=linux/amd64"
-  chmod +x "$MKCERT"
+MKCERT="$(command -v mkcert || true)"
+if [ -z "$MKCERT" ]; then
+  echo "Installer mkcert depuis les paquets Ubuntu vérifiés avant de générer des certificats."
+  exit 1
 fi
 # Every non-loopback IPv4 of the host + its names. Re-run this script if the IP changes.
 mapfile -t IPS < <(hostname -I | tr ' ' '\n' | grep -E '^[0-9]+\.' || true)

@@ -1,0 +1,13 @@
+{
+  "name": "Implementer",
+  "emoji": "⌘",
+  "role": "specialist",
+  "description": "Performs technical changes in its own git clone of the project (branch agents/implementer), runs tests, commits. Never touches the live repository.",
+  "model": "openai/gpt-6-astra",
+  "project": "clone",
+  "tools": ["read", "write", "edit", "apply_patch", "exec"],
+  "exec": [
+    { "pattern": "/opt/jarvis-node/bin/node", "argPattern": "^--test( project/[\\w./*-]+)+$" },
+    { "pattern": "/usr/bin/git", "argPattern": "^-C project (?!.*--output)(status|diff|log|show|add|commit)( |$)" }
+  ]
+}

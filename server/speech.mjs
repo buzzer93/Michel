@@ -12,7 +12,7 @@ export function wantsWindow(text) {
 /** System brief prepended to every utterance. `userName` comes from config/settings.json (may be empty).
  * `allowWindow`: the <fenetre> instruction is only given when the user explicitly asked for a page. */
 export const voiceBrief = (userName, allowWindow = false) =>
-  `[Canal vocal JARVIS — ${userName ? userName + " te parle" : "l'utilisateur te parle"} à voix haute et ta réponse sera lue par une synthèse vocale française. ` +
+  `[Canal vocal Michel — ${userName ? userName + " te parle" : "l'utilisateur te parle"} à voix haute et ta réponse sera lue par une synthèse vocale française. ` +
   "Commence TOUJOURS ta réponse par un bloc <voix>…</voix> : une à deux phrases courtes en français parlé, naturelles, " +
   "sans markdown, sans liste, sans URL, sans code, sans emoji. Après ce bloc, et seulement si c'est utile, donne le détail " +
   "en markdown : il sera affiché à l'écran, pas lu. Si tout tient dans le bloc <voix>, n'ajoute rien. " +
@@ -116,7 +116,7 @@ export class ReplyStream {
  * [{ who: "user"|"agent", ts, text, detail }]. Keeps what was actually said: the user's sentence without
  * the voice brief the app prepends, and the agent's spoken <voix> part with its on-screen detail.
  * Tool calls, tool results and empty or silent replies are left out. */
-const BRIEF = /^\[Canal vocal JARVIS[\s\S]*?\]\s*/;
+const BRIEF = /^\[Canal vocal Michel[\s\S]*?\]\s*/;
 const SILENT = /^(NO_REPLY|No response requested\.?)$/i;
 export function historyEntries(messages = []) {
   const out = [];

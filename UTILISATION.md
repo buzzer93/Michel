@@ -1,4 +1,4 @@
-# Utilisation — assistant vocal JARVIS
+# Utilisation — assistant vocal Michel
 
 ## Démarrer
 

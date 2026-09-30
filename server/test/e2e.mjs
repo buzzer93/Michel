@@ -4,13 +4,13 @@
 import WebSocket from "ws";
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
-import { loadAgents } from "../agents.mjs";
+import { loadAgents, delegationTargets } from "../agents.mjs";
 
 const args = process.argv.slice(2);
 const APP = new URL("../../", import.meta.url).pathname;
 // Agents come from the same sources as the server (local file, then OpenClaw config, then the example).
 const ocCfg = JSON.parse(readFileSync(`${process.env.HOME}/.openclaw/openclaw.json`, "utf8"));
-const { agents } = loadAgents({ app: APP, ocCfg });
+const { agents } = loadAgents({ app: APP, ocCfg, excludeIds: delegationTargets(ocCfg) });
 const phrase = args.find((a, i) => !a.startsWith("--") && args[i - 1] !== "--wait") ?? `${agents[0].name}, dis simplement bonjour.`; // not the value of --wait
 const typed = args.includes("--typed");
 const wait = Number(args[args.indexOf("--wait") + 1] || 60) * 1000;

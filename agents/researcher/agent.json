@@ -1,0 +1,9 @@
+{
+  "name": "Researcher",
+  "emoji": "⌕",
+  "role": "specialist",
+  "description": "Finds information and evidence (repository, documentation, web). Read-only.",
+  "model": "openai/gpt-6-astra",
+  "project": "read",
+  "tools": ["read", "browser", "web_fetch", "web_search", "memory_search", "memory_get"]
+}

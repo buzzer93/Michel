@@ -10,7 +10,7 @@ export const DEFAULT_GLYPH = "◈";
 export const DEFAULT_AGENT_ID = "main"; // OpenClaw's built-in default agent
 // Display name for the default agent when OpenClaw gives it none: "Main" is a French word ("un coup de
 // main") and would wake it by accident, so the app's own name serves as its wake word.
-export const DEFAULT_AGENT_NAME = "Jarvis";
+export const DEFAULT_AGENT_NAME = "Michel";
 
 /** Lower-case ASCII form used for aliases and file names ("Éva Sœur" → "eva-soeur" / alias "eva"). */
 export const slug = (s) => String(s ?? "").normalize("NFD").replace(/\p{M}/gu, "").replace(/œ/g, "oe").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -39,13 +39,24 @@ const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
  * Agents declared in OpenClaw's own configuration (`agents.entries`, keyed by id; older layouts
  * used an array). Display name = identity.name, then name, then the id. The default agent comes first.
  */
-export function discoverAgents(ocCfg) {
+export function discoverAgents(ocCfg, { excludeIds = [] } = {}) {
+  const excluded = new Set(excludeIds);
   const raw = ocCfg?.agents?.entries ?? ocCfg?.agents?.list ?? {};
   const list = Array.isArray(raw) ? raw.map((e) => ({ id: e.id, ...e })) : Object.entries(raw).map(([id, e]) => ({ id, ...(e ?? {}) }));
   const ordered = [...list.filter((e) => e.id === DEFAULT_AGENT_ID), ...list.filter((e) => e.id !== DEFAULT_AGENT_ID)];
-  return ordered.filter((e) => e.id && e.enabled !== false).map((e, i) => normalizeAgent({
+  return ordered.filter((e) => e.id && e.enabled !== false && !excluded.has(e.id)).map((e, i) => normalizeAgent({
     id: e.id, name: e.identity?.name ?? e.name ?? undefined, glyph: e.identity?.emoji ?? undefined,
   }, i));
+}
+
+/**
+ * Ids that another agent may delegate to (`agents.entries.*.subagents.allowAgents`): internal
+ * specialists, reached through their coordinator rather than called by name.
+ */
+export function delegationTargets(ocCfg) {
+  const raw = ocCfg?.agents?.entries ?? ocCfg?.agents?.list ?? {};
+  const entries = Array.isArray(raw) ? raw : Object.values(raw);
+  return [...new Set(entries.flatMap((e) => e?.subagents?.allowAgents ?? []))];
 }
 
 /** Parse config/agents.json (or another file); null when absent. */
@@ -60,11 +71,11 @@ export function readAgentsFile(file) {
  * forces discovery — handy to test the auto mode without touching the local config).
  * Returns { agents, source }.
  */
-export function loadAgents({ app, ocCfg, env = process.env }) {
+export function loadAgents({ app, ocCfg, env = process.env, excludeIds = [] }) {
   const local = env.JARVIS_AGENTS_FILE ?? join(app, "config/agents.json");
   const fromFile = readAgentsFile(local);
   if (fromFile?.length) return { agents: fromFile, source: local };
-  const discovered = discoverAgents(ocCfg);
+  const discovered = discoverAgents(ocCfg, { excludeIds });
   if (discovered.length) return { agents: discovered, source: "openclaw.json" };
   const example = readAgentsFile(join(app, "config/agents.example.json"));
   if (example?.length) return { agents: example, source: "config/agents.example.json" };

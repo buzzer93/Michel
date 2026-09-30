@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# JARVIS control script. Usage: bin/jarvis <install|start|stop|restart|status|logs|code|url|certs|test|uninstall>
+# Michel control script. Usage: bin/jarvis <install|start|stop|restart|status|logs|code|url|certs|test|uninstall>
 set -euo pipefail
 APP="$(cd "$(dirname "$0")/.." && pwd)"
 UNITS=(jarvis-stt jarvis-stt-precise jarvis-tts jarvis-tts-st jarvis-web)
@@ -13,7 +13,9 @@ case "${1:-status}" in
     for u in "${UNITS[@]}"; do sed -e "s#@APP@#$APP#g" -e "s#@NODE@#$NODE#g" "$APP/systemd/$u.service" > "$UNIT_DIR/$u.service"; done
     systemctl --user daemon-reload
     systemctl --user enable --now "${UNITS[@]}"
-    [ -f "$APP/certs/server.pem" ] || "$APP/bin/make-certs.sh"
+    if [ "${JARVIS_LOCAL_ONLY:-0}" != 1 ]; then
+      [ -f "$APP/certs/server.pem" ] || "$APP/bin/make-certs.sh"
+    fi
     systemctl --user restart jarvis-web
     "$0" url ;;
   start|stop|restart) systemctl --user "$1" "${UNITS[@]}" ;;
@@ -24,8 +26,10 @@ case "${1:-status}" in
   code) cat "$APP/config/access-code.txt" ;;
   url)
     echo "Sur ce PC      : http://localhost:8480"
-    echo "Sur le réseau  : https://$(ip):8443   (code d'accès : $(cat "$APP/config/access-code.txt" 2>/dev/null || echo 'généré au premier démarrage'))"
-    echo "Certificat CA  : https://$(ip):8443/ca.crt  (à importer une fois par appareil)" ;;
+    if [ "${JARVIS_LOCAL_ONLY:-0}" != 1 ]; then
+      echo "Sur le réseau  : https://$(ip):8443   (voir bin/jarvis code)"
+      echo "Certificat CA  : https://$(ip):8443/ca.crt  (à importer une fois par appareil)"
+    fi ;;
   certs) "$APP/bin/make-certs.sh" && systemctl --user restart jarvis-web ;;
   test)
     cd "$APP/server"

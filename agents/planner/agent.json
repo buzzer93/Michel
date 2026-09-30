@@ -1,0 +1,9 @@
+{
+  "name": "Planner",
+  "emoji": "▦",
+  "role": "specialist",
+  "description": "Creates execution plans: steps, dependencies, risks, acceptance criteria. Read-only.",
+  "model": "openai/gpt-6-astra",
+  "project": "read",
+  "tools": ["read"]
+}

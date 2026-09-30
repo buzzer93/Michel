@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { discoverAgents, loadAgents, buildSttPrompt, assignVoices, normalizeAgent, fnv1a, readVoiceIds, PALETTE, DEFAULT_GLYPH } from "../agents.mjs";
+import { discoverAgents, delegationTargets, loadAgents, buildSttPrompt, assignVoices, normalizeAgent, fnv1a, readVoiceIds, PALETTE, DEFAULT_GLYPH } from "../agents.mjs";
 import { route } from "../router.mjs";
 
 const APP = new URL("../../", import.meta.url).pathname;
@@ -18,15 +18,29 @@ const ocCfg = { agents: { entries: {
 test("découverte depuis openclaw.json : main en tête, nom, alias, couleur, glyphe", () => {
   const agents = discoverAgents(ocCfg);
   assert.deepEqual(agents.map((a) => a.id), ["main", "zoe", "jean-luc", "lea"]);
-  assert.deepEqual(agents.map((a) => a.name), ["Jarvis", "Zoe", "Jean-Luc", "Léa"]); // unnamed default agent = the app's name
-  assert.deepEqual(agents[0].aliases, ["jarvis"]);          // never "main" (French word)
+  assert.deepEqual(agents.map((a) => a.name), ["Michel", "Zoe", "Jean-Luc", "Léa"]); // unnamed default agent = the app's name
+  assert.deepEqual(agents[0].aliases, ["michel"]);          // never "main" (French word)
   assert.deepEqual(agents[2].aliases, ["jean-luc"]);        // id identical to the name: not repeated
   assert.deepEqual(agents[3].aliases, ["lea"]);             // accent-free
   assert.equal(agents[2].glyph, "🛰️"); assert.equal(agents[1].glyph, DEFAULT_GLYPH);
   assert.deepEqual(agents.map((a) => a.color), PALETTE.slice(0, 4));
   assert.equal(agents[3].avatarKey, "lea");
   assert.equal(discoverAgents({ agents: { list: [{ id: "bob" }] } })[0].name, "Bob"); // older array layout
+  assert.deepEqual(discoverAgents({ agents: { entries: { main: {}, researcher: {}, planner: {} } } }, { excludeIds: ["researcher", "planner"] }).map((a) => a.id), ["main"]);
   assert.deepEqual(discoverAgents({}), []);
+});
+
+test("les spécialistes joignables seulement par délégation sont exclus du rail vocal", () => {
+  const team = { agents: { entries: {
+    main: {},
+    orchestrator: { identity: { name: "Atlas" }, subagents: { allowAgents: ["researcher", "planner"] } },
+    researcher: { subagents: { allowAgents: [] } },
+    planner: {},
+    agenda: { identity: { name: "Iris" } },
+  } } };
+  assert.deepEqual(delegationTargets(team), ["researcher", "planner"]);
+  assert.deepEqual(discoverAgents(team, { excludeIds: delegationTargets(team) }).map((a) => a.name), ["Michel", "Atlas", "Iris"]);
+  assert.deepEqual(delegationTargets({}), []);
 });
 
 test("les agents découverts sont routables par le prénom", () => {
@@ -51,7 +65,7 @@ test("loadAgents : fichier local, sinon openclaw.json, sinon l'exemple", () => {
 
 test("amorce Whisper : phrases complètes avec les prénoms, jamais une liste nue", () => {
   const p = buildSttPrompt(discoverAgents(ocCfg));
-  assert.match(p, /^Jarvis, quelle heure est-il \? Stop\. Zoe, relis le rapport\. Jean-Luc, annule\. Léa, /);
+  assert.match(p, /^Michel, quelle heure est-il \? Stop\. Zoe, relis le rapport\. Jean-Luc, annule\. Léa, /);
   assert.ok(p.endsWith(" Stop."));
   assert.equal(buildSttPrompt([normalizeAgent({ id: "solo", name: "Solo" })]).match(/Solo,/g).length, 4); // one agent still gets several examples
   assert.equal(buildSttPrompt([]), "");

@@ -1,5 +1,5 @@
 [Unit]
-Description=JARVIS - serveur web et pont OpenClaw
+Description=Michel - serveur web et pont OpenClaw
 After=jarvis-stt.service jarvis-stt-precise.service jarvis-tts.service jarvis-tts-st.service openclaw-gateway.service
 Wants=jarvis-stt.service jarvis-stt-precise.service jarvis-tts.service jarvis-tts-st.service
 

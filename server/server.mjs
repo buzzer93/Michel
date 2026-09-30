@@ -1,4 +1,4 @@
-// JARVIS vocal assistant — web server + bridge between browsers, the OpenClaw Gateway,
+// Michel voice assistant — web server + bridge between browsers, the OpenClaw Gateway,
 // the local Whisper server (STT) and the local Piper service (TTS).
 import { createServer as createHttps } from "node:https";
 import { createServer as createHttp } from "node:http";
@@ -14,7 +14,7 @@ import { route } from "./router.mjs";
 import { ReplyStream, voiceBrief, cleanForSpeech, extractWindows, wantsWindow, historyEntries } from "./speech.mjs";
 import { describeTool } from "./tools.mjs";
 import { BrowserWindows } from "./browser.mjs";
-import { loadAgents, buildSttPrompt, assignVoices, readVoiceIds } from "./agents.mjs";
+import { loadAgents, delegationTargets, buildSttPrompt, assignVoices, readVoiceIds } from "./agents.mjs";
 
 const APP = join(dirname(fileURLToPath(import.meta.url)), "..");
 const WEB = join(APP, "web");
@@ -25,7 +25,8 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 23), ...a);
 const debug = (...a) => settings.debug && log("[debug]", ...a);
 // The Gateway config gives us the token and, when config/agents.json is absent, the agents themselves.
 const ocCfg = JSON.parse(readFileSync(join(homedir(), ".openclaw/openclaw.json"), "utf8"));
-const { agents: agentsCfg, source: agentsSource } = loadAgents({ app: APP, ocCfg });
+// Specialists reached only through another agent's delegation are not called by voice.
+const { agents: agentsCfg, source: agentsSource } = loadAgents({ app: APP, ocCfg, excludeIds: delegationTargets(ocCfg) });
 // agent id → voice id of the catalogue (vendor/voices/voices.json); the TTS service applies the same
 // rule on its own, the id is sent along so both stay in step.
 const voiceOf = assignVoices(agentsCfg, readVoiceIds(join(APP, "vendor/voices/voices.json")));
@@ -44,11 +45,20 @@ function envOverrides() {
 const secretFile = join(APP, "config/access-code.txt");
 if (!existsSync(secretFile)) {
   mkdirSync(dirname(secretFile), { recursive: true });
-  writeFileSync(secretFile, randomBytes(4).toString("hex") + "\n", { mode: 0o600 });
+  writeFileSync(secretFile, randomBytes(32).toString("hex") + "\n", { mode: 0o600 });
 }
 const accessCode = readFileSync(secretFile, "utf8").trim();
 const cookieValue = createHash("sha256").update("jarvis-session|" + accessCode).digest("hex");
-const safeEq = (a, b) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+const safeEq = (first, second) => {
+  const firstBytes = Buffer.from(first), secondBytes = Buffer.from(second);
+  return firstBytes.length === secondBytes.length && timingSafeEqual(firstBytes, secondBytes);
+};
+const allowedHosts = new Set([`localhost:${settings.httpPort}`, `127.0.0.1:${settings.httpPort}`, `localhost:${settings.httpsPort}`, `127.0.0.1:${settings.httpsPort}`]);
+const allowedHost = (req) => !settings.localOnly || allowedHosts.has(req.headers.host);
+const sameOrigin = (req) => {
+  try { return !req.headers.origin || new URL(req.headers.origin).host === req.headers.host; }
+  catch { return false; }
+};
 const isLoopback = (req) => ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.socket.remoteAddress);
 const hasSession = (req) => isLoopback(req) || (req.headers.cookie ?? "").split(/;\s*/).some((c) => c.startsWith("jv=") && safeEq(c.slice(3), cookieValue));
 const loginFailures = new Map(); // ip → { n, until }
@@ -491,6 +501,7 @@ function serveFile(res, file, headers = {}) {
 }
 
 function handler(req, res) {
+  if (!allowedHost(req)) { res.writeHead(403).end(); return; }
   const url = new URL(req.url, "http://x");
   res.setHeader("x-content-type-options", "nosniff");
   res.setHeader("referrer-policy", "no-referrer");
@@ -520,8 +531,7 @@ function handler(req, res) {
   if (!hasSession(req) && !publicFiles.includes(url.pathname)) { res.writeHead(302, { location: "/login.html" }).end(); return; }
   if (url.pathname === "/api/avatar") {
     // Same-origin only: a page from another site must not be able to change pictures through the cookie.
-    const origin = req.headers.origin;
-    if (origin && new URL(origin).host !== req.headers.host) { res.writeHead(403).end(); return; }
+    if (!sameOrigin(req)) { res.writeHead(403).end(); return; }
     return handleAvatarApi(req, res, url);
   }
   const rel = normPath(decodeURIComponent(url.pathname === "/" ? "/index.html" : url.pathname));
@@ -532,9 +542,7 @@ function handler(req, res) {
 function attachWs(server) {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 8 * 1024 * 1024 });
   server.on("upgrade", (req, socket, head) => {
-    const origin = req.headers.origin;
-    const sameOrigin = !origin || new URL(origin).host === req.headers.host;
-    if (req.url !== "/ws" || !hasSession(req) || !sameOrigin) { socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n"); socket.destroy(); return; }
+    if (req.url !== "/ws" || !allowedHost(req) || !hasSession(req) || !sameOrigin(req)) { socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n"); socket.destroy(); return; }
     wss.handleUpgrade(req, socket, head, onBrowser);
   });
 }

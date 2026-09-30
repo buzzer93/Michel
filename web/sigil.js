@@ -27,7 +27,7 @@ const claw = (d, pivot, begin = "0s") => `<path d="${d}" fill="url(#oc-fill)" st
 const eye = (x) => `<circle cx="${x}" cy="35" r="6.5" fill="#02060d" stroke="currentColor" stroke-width="1.2"/>
     <circle cx="${x + 1}" cy="34" r="2.6" fill="#e6fbff"><animate attributeName="opacity" values="1; 1; 0.2; 1" keyTimes="0; 0.9; 0.95; 1" dur="3s" repeatCount="indefinite"/></circle>`;
 
-/** The J.A.R.V.I.S emblem: the rotating sigil geometry with the OpenClaw mascot at its centre. */
+/** The Michel emblem: the rotating sigil geometry with the OpenClaw mascot at its centre. */
 export function openclawSigilSvg(color) {
   const body = "M60 10 C30 10 15 35 15 55 C15 75 30 95 45 100 L45 110 L55 110 L55 100 C55 100 60 102 65 100 L65 110 L75 110 L75 100 C90 95 105 75 105 55 C105 35 90 10 60 10Z";
   const mascot = `<defs>
@@ -46,5 +46,5 @@ export function openclawSigilSvg(color) {
         ${eye(45)}${eye(75)}
       </g>
     </g>`;
-  return sigilSvg("JARVIS", color, mascot).replace('class="sigil"', 'class="sigil emblem"');
+  return sigilSvg("Michel", color, mascot).replace('class="sigil"', 'class="sigil emblem"');
 }

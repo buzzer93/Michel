@@ -1,5 +1,5 @@
 [Unit]
-Description=JARVIS - synthese vocale (Piper)
+Description=Michel - synthese vocale (Piper)
 
 [Service]
 WorkingDirectory=@APP@

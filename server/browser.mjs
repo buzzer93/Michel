@@ -1,5 +1,5 @@
 // Server-side browser windows: pages are rendered in a headless Chrome on the host and streamed to
-// the JARVIS page as JPEG frames; clicks, scroll and keys are forwarded back. Works for every site,
+// the Michel page as JPEG frames; clicks, scroll and keys are forwarded back. Works for every site,
 // including those that forbid embedding (GitHub, Google…), and never exposes the user's own cookies.
 import { createHash } from "node:crypto";
 

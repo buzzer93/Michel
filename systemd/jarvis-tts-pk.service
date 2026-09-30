@@ -1,5 +1,5 @@
 [Unit]
-Description=JARVIS - synthese vocale Pocket TTS (Kyutai, timbres clones)
+Description=Michel - synthese vocale Pocket TTS (Kyutai, timbres clones)
 
 [Service]
 WorkingDirectory=@APP@

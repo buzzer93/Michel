@@ -1,10 +1,10 @@
-# J.A.R.V.I.S — a local voice interface for your OpenClaw agents
+# Michel — a local voice interface for your OpenClaw agents
 
 Talk to your [OpenClaw](https://github.com/openclaw/openclaw) agents by name, from any browser on your
 local network. Say *"Neo, lance les tests"* and Neo wakes up, works, answers out loud with his own
 voice, and shows the details on screen. Call Ada while Neo is still busy: she starts in parallel.
 
-![J.A.R.V.I.S: Ada answers out loud. Her orb pulses with her voice, the subtitles light up word by word, the detail of her answer (a table) opens in a floating window, and the activity rail shows every agent's state.](docs/screenshot.jpg)
+![Michel: Ada answers out loud. Her orb pulses with her voice, the subtitles light up word by word, the detail of her answer (a table) opens in a floating window, and the activity rail shows every agent's state.](docs/screenshot.jpg)
 
 *Ada answers a spoken question: short sentences out loud (lit word by word in the subtitles), the table in
 her detail window, her pulse line in the agent rail.*
@@ -271,7 +271,7 @@ Good to know:
 
 Out of the box, nothing needs configuring: **your agents are discovered automatically** from
 `agents.entries` in `~/.openclaw/openclaw.json` (id, `name` or `identity.name`, emoji). The default
-agent `main` comes first; if it has no name in OpenClaw, it answers to **"Jarvis"** (the French word
+agent `main` comes first; if it has no name in OpenClaw, it answers to **"Michel"** (the French word
 *main* would wake it by accident). Each agent gets an alias (its name in lower case without accents,
 plus its id), a neon colour and a voice from the catalogue, all stable from one start to the next.
 
@@ -374,6 +374,6 @@ how numbers are read.
 
 ## Licence
 
-J.A.R.V.I.S is free software, released under the **GNU General Public License v3.0 or later**
+Michel is free software, released under the **GNU General Public License v3.0 or later**
 ([LICENSE](LICENSE)). The GPL was chosen because the speech service links the GPL-3.0 `piper-tts`
 package; the third-party components above keep their own licences.

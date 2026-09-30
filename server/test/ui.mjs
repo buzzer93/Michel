@@ -4,11 +4,12 @@
 import puppeteer from "puppeteer-core";
 import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
-import { loadAgents } from "../agents.mjs";
+import { loadAgents, delegationTargets } from "../agents.mjs";
 
 const arg = (name, def) => { const i = process.argv.indexOf("--" + name); return i > -1 ? process.argv[i + 1] : def; };
 const APP = new URL("../../", import.meta.url).pathname;
-const { agents } = loadAgents({ app: APP, ocCfg: JSON.parse(readFileSync(`${process.env.HOME}/.openclaw/openclaw.json`, "utf8")) });
+const ocCfg = JSON.parse(readFileSync(`${process.env.HOME}/.openclaw/openclaw.json`, "utf8"));
+const { agents } = loadAgents({ app: APP, ocCfg, excludeIds: delegationTargets(ocCfg) });
 const say = arg("say", `${agents[0].name}, dis simplement bonjour.`);
 const [vw, vh] = arg("viewport", "1440x900").split("x").map(Number);
 const shots = arg("shots", "/tmp/jarvis"); mkdirSync(shots, { recursive: true });
