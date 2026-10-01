@@ -216,6 +216,31 @@ async function decideApproval(id, decision) {
   await resolveApproval(view, decision);
 }
 
+// The agent loop is bounded by code, not only by the instructions: at most MAX_DELEGATIONS delegations per user
+// request (counted across the follow-up turns of the same request), beyond which the request is stopped.
+const MAX_DELEGATIONS = settings.maxDelegations ?? 8;
+const delegationCount = new Map(); // agentId → delegations since the user's last request to it
+
+async function capDelegations(agentId) {
+  const n = (delegationCount.get(agentId) ?? 0) + 1;
+  delegationCount.set(agentId, n);
+  if (n <= MAX_DELEGATIONS) return;
+  log(`plafond de délégations dépassé (${n} > ${MAX_DELEGATIONS}) : demande à ${agentName(agentId)} arrêtée`);
+  broadcast({ t: "notice", id: agentId, level: "error", text: `demande arrêtée : plus de ${MAX_DELEGATIONS} délégations` });
+  try { await gateway.request("chat.abort", { sessionKey: sessionKeyFor(agentId) }); } catch (e) { log("chat.abort:", e?.message); }
+}
+
+/** "Nouvelle conversation": the agent's voice session starts over (memory keeps what matters). */
+async function newConversation(client, agentId) {
+  try {
+    await gateway.request("sessions.reset", { key: sessionKeyFor(agentId) }, { timeoutMs: 20000 });
+    delegationCount.delete(agentId);
+    log(`nouvelle conversation : ${agentName(agentId)}`);
+    send(client.id, { t: "notice", id: agentId, level: "info", text: "nouvelle conversation" });
+    refreshUsage();
+  } catch (e) { log("sessions.reset:", e?.message); send(client.id, { t: "notice", id: agentId, level: "error", text: "impossible de repartir à zéro" }); }
+}
+
 function onGatewayEvent(ev) {
   const p = ev.payload ?? {};
   if (/^(plugin|exec)\.approval\.(requested|resolved)$/.test(ev.event ?? "")) return void onApprovalEvent(ev);
@@ -235,6 +260,7 @@ function onGatewayEvent(ev) {
         broadcast({ t: "pulse", id: run.agentId, tool });
         const target = spawnTarget(d.name ?? d.toolName ?? d.tool ?? "", d.args ?? d.input ?? d.params);
         if (target) {
+          capDelegations(run.agentId);
           delegations.set(target, { from: run.agentId, since: Date.now() });
           broadcast({ t: "delegate", id: run.agentId, to: target, name: agentName(target), state: "running" });
           setTimeout(refreshExternalActivity, 6000).unref();
@@ -422,6 +448,7 @@ async function sendToAgent(client, agentId, text) {
   const runId = `jarvis-${randomUUID()}`;
   const allowWindow = wantsWindow(text);
   lastClientFor.set(agentId, client.id);
+  delegationCount.set(agentId, 0); // a new user request: a fresh delegation budget
   const run = newRun(agentId, client.id, runId);
   run.allowWindow = allowWindow;
   setStatus(agentId, "thinking");
@@ -560,6 +587,7 @@ function onBrowser(ws) {
       else if (msg.t === "select" && agentState.has(msg.id)) wake(client, msg.id, false);
       else if (msg.t === "stop") stopSpeech(client);
       else if (msg.t === "approval.resolve") await decideApproval(msg.id, msg.decision);
+      else if (msg.t === "conversation.new" && agentState.has(msg.id)) await newConversation(client, msg.id);
       else if (msg.t === "history" && agentState.has(msg.id)) await sendHistory(client, msg.id);
       else if (msg.t === "clog") log("page:", String(msg.text ?? "").replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, " ").slice(0, 400)); // client-side errors (mic, audio, scripts)
       else if (msg.t === "win.input") await browserWins.input(client.id, msg);

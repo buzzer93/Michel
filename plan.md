@@ -122,18 +122,30 @@ carte `gog gmail send --to … --subject "Test approbation Michel (refus)" --bod
 approuvé : la boîte d'envoi contient exactement un « (accord) » et aucun « (refus) ». Compile : carte
 `docker restart watchless-web` refusée, conteneur non redémarré (heure de démarrage inchangée). 31 tests verts.
 
-## Étape 3 — Contexte court et délégation sobre (§8, §13)
+## ~~Étape 3 — Contexte court et délégation sobre (§8, §13)~~ ✅
 
 Chaque échange vocal envoie ~46 000 tokens (toute la conversation depuis la veille) : lenteur et quota consommé.
 
-- 3.1 Nouvelle conversation chaque jour (la mémoire garde l'utile), plus un bouton « Nouvelle conversation ».
-- 3.2 Consignes de Michel : Vérifie seulement quand l'enjeu le justifie (pas pour une météo ou une question simple).
-- 3.3 Boucle de l'agent bornée par le code (§6, §10) : le plafond de 8 délégations par demande, aujourd'hui écrit
-  seulement dans la consigne, est imposé (par OpenClaw s'il le permet, sinon par le serveur qui arrête la demande).
+- ~~3.1 Nouvelle conversation chaque jour (la mémoire garde l'utile), plus un bouton « Nouvelle conversation ».~~
+  Fait : réinitialisation native d'OpenClaw (`session.reset: daily`, 4 h) ; bouton « + » (touche N) qui repart à zéro
+  avec l'agent actif (`sessions.reset`).
+- ~~3.2 Consignes de Michel : Vérifie seulement quand l'enjeu le justifie (pas pour une météo ou une question simple).~~
+- ~~3.3 Boucle de l'agent bornée par le code (§6, §10) : le plafond de 8 délégations par demande, aujourd'hui écrit
+  seulement dans la consigne, est imposé (par OpenClaw s'il le permet, sinon par le serveur qui arrête la demande).~~
+  Fait : OpenClaw n'a pas de plafond total (seulement 4 délégations simultanées) → le serveur compte les délégations
+  de chaque demande (tours de suivi compris) et l'arrête au-delà de `maxDelegations` (8 par défaut, `settings.json`) ;
+  détection de boucles d'outils d'OpenClaw activée (`tools.loopDetection`).
 
 **Fait quand** : le panneau Modèle affiche un contexte < 15 000 tokens au premier échange du jour ; une question
 web simple ne passe plus par Vérifie ; une demande qui dépasse le plafond de délégations est arrêtée par le code ;
 temps de réponse mesuré avant / après.
+
+**Fait le 2026-10-01.** Contexte de Michel : 54 701 tokens avant « Nouvelle conversation », 10 278 après le premier
+échange. « Quel temps fait-il à Grenoble ? » : Explore seul (plus de Vérifie), réponse finale en 62 s dont 38 s
+d'Explore ; dans le test du jour à 13 h 11, Vérifie ajoutait ~45 s. Plafond mis à 0 pour le test : la première
+délégation déclenche « plafond de délégations dépassé (1 > 0) : demande à Michel arrêtée » et la demande est
+interrompue (AbortError côté gateway) ; réglage d'origine remis. Le temps restant est surtout la recherche web
+d'Explore : à mesurer finement avec la ligne « temps … » de l'étape V.
 
 ## Étape 4 — Évaluer les agents (§12)
 

@@ -178,6 +178,7 @@ config = {
     # only misleads the model (measured: the researcher called the OpenAI-hosted web_search through tool_call and
     # gave up), so every agent sees its tools directly.
     'tools': {'profile': 'minimal', 'deny': ['gateway', 'cron', 'message', 'nodes', 'plugins'], 'exec': {'host': 'gateway', 'mode': 'deny'}, 'fs': {'workspaceOnly': True}, 'elevated': {'enabled': False}, 'codeMode': {'enabled': False}, 'toolSearch': False,
+              'loopDetection': {'enabled': True},   # stops an agent repeating the same tool calls without progress
               # The global layer grants the union of what agents declare, so it never hides a tool an agent was
               # given; each agent's own profile, alsoAllow and deny still narrow it down.
               'alsoAllow': sorted({tool for spec in team.values() for tool in spec['tools']} | {'exec'}),
@@ -187,6 +188,9 @@ config = {
     'browser': {'enabled': True, 'executablePath': '/usr/bin/brave-browser', 'headless': True, 'evaluateEnabled': False},
     'plugins': {'slots': {'memory': 'memory-core'}, 'entries': {'memory-core': {'config': {'dreaming': {'enabled': False}}}, 'duckduckgo': {'enabled': True}}},
     'memory': {'search': {'extraPaths': [str(state / '.openclaw/workspace/USER.md')]}},
+    # A new conversation each day at 04:00 (on the next message): the context stays short (it reached ~46,000
+    # tokens per voice exchange); what matters is kept by the memory.
+    'session': {'reset': {'mode': 'daily', 'atHour': 4}},
     'cron': {'enabled': False},
     'discovery': {'mdns': {'mode': 'off'}},
     'update': {'checkOnStart': False, 'auto': {'enabled': False}}
