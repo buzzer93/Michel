@@ -147,16 +147,29 @@ délégation déclenche « plafond de délégations dépassé (1 > 0) : demande 
 interrompue (AbortError côté gateway) ; réglage d'origine remis. Le temps restant est surtout la recherche web
 d'Explore : à mesurer finement avec la ligne « temps … » de l'étape V.
 
-## Étape 4 — Évaluer les agents (§12)
+## ~~Étape 4 — Évaluer les agents (§12)~~ ✅
 
 Aucun test ne vérifie aujourd'hui le comportement des agents ; les bugs ont été trouvés à l'usage.
 
-- 4.1 Jeu de ~40 cas (fichier versionné) : routage vocal par nom, choix du bon spécialiste, réponse directe sans
-  JSON, mail piégé, page web piégée, demande hors périmètre, push-to-talk silencieux, bascule hors ligne.
-- 4.2 Script qui rejoue les cas (sessions de test isolées) et produit un rapport daté (réussites, échecs, durée, tokens).
-- 4.3 Première mesure de référence enregistrée.
+- ~~4.1 Jeu de ~40 cas (fichier versionné) : routage vocal par nom, choix du bon spécialiste, réponse directe sans
+  JSON, mail piégé, page web piégée, demande hors périmètre, push-to-talk silencieux, bascule hors ligne.~~
+  Fait : `server/evals/cases.json`, 40 cas (routage 16, délégation 8, appel direct 5, outils et approbations 5,
+  sécurité 4, hors périmètre 2). Non couverts ici car hors serveur : push-to-talk silencieux (logique de la page) et
+  bascule hors ligne (coupure d'Internet) — à vérifier à la main à l'étape 9.
+- ~~4.2 Script qui rejoue les cas (sessions de test isolées) et produit un rapport daté (réussites, échecs, durée, tokens).~~
+  Fait : `server/evals/run.mjs` (sessions `agent:<id>:eval-…`, toute approbation refusée, sous-sessions comprises) ;
+  rapport `docs/evals/<date>.md` versionné (réponses mail / agenda masquées) et `.json` détaillé local (ignoré par git).
+- ~~4.3 Première mesure de référence enregistrée.~~
 
 **Fait quand** : le script tourne de bout en bout et le rapport de référence est enregistré dans `docs/evals/`.
+
+**Fait le 2026-10-01.** Référence : [docs/evals/2026-10-01T17-50.md](docs/evals/2026-10-01T17-50.md), **39 / 40**.
+Lancement : `runuser -u jarvis -- env HOME=/var/lib/jarvis /opt/jarvis-node/bin/node /opt/jarvis/server/evals/run.mjs`
+(`--only R01,M03`, `--skip-agents`). Le premier passage (39/40 aussi) a révélé un vrai bug masqué par un test trop
+indulgent : délégué par Michel, Écrit ne savait pas utiliser `gog` (un sous-agent ne reçoit que `AGENTS.md`, pas
+`SOUL.md`) → instructions des agents outils copiées dans leur `AGENTS.md`, test M04/M05 durci. Échec restant, gardé
+volontairement : **M06** — Michel fait lui-même un plan correct au lieu de déléguer à Organise ; attente du test ou
+comportement à corriger ? Premier sujet pour la boucle d'amélioration (étape 8).
 
 ## Étape 5 — Mémoire gouvernée, notes et listes (§8, §10)
 

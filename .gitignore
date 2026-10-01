@@ -30,3 +30,5 @@ DECISIONS.md
 # avatar source images and local config backups
 web/avatars/michels/
 config/*.before-*
+# detailed evaluation reports: they hold the agents' full answers (mail, calendar)
+docs/evals/*.json
