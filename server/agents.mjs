@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 // Neon palette, cycled when an agent has no colour of its own.
-export const PALETTE = ["#4f86ff", "#39ff88", "#22d3ee", "#a78bfa", "#ff7eb6", "#ff4d6d", "#ffb454", "#2dd4bf", "#f472b6", "#facc15"];
+export const PALETTE = ["#22d3ee", "#e879f9", "#a78bfa", "#fbbf24", "#60a5fa", "#fb7185", "#2dd4bf", "#fb923c", "#a3e635", "#818cf8"]; // galactic hues
 export const DEFAULT_GLYPH = "◈";
 export const DEFAULT_AGENT_ID = "main"; // OpenClaw's built-in default agent
 // Display name for the default agent when OpenClaw gives it none: "Main" is a French word ("un coup de
@@ -14,15 +14,16 @@ export const DEFAULT_AGENT_NAME = "Michel";
 
 /** Lower-case ASCII form used for aliases and file names ("Éva Sœur" → "eva-soeur" / alias "eva"). */
 export const slug = (s) => String(s ?? "").normalize("NFD").replace(/\p{M}/gu, "").replace(/œ/g, "oe").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-// Same token shape as router.mjs normalize(); Whisper yields one token per word, so the first word is what gets matched.
-const aliasOf = (s) => String(s ?? "").normalize("NFD").replace(/\p{M}/gu, "").replace(/œ/g, "oe").toLowerCase().replace(/[^a-z0-9' -]+/g, " ").trim().split(/\s+/)[0] ?? "";
+// Same token shape as router.mjs normalize(). A multi-word name stays one phrase ("Michel Écrit" →
+// "michel ecrit") so agents sharing a first word stay distinct; the router matches two-word phrases first.
+const aliasOf = (s) => String(s ?? "").normalize("NFD").replace(/\p{M}/gu, "").replace(/œ/g, "oe").toLowerCase().replace(/[^a-z0-9' -]+/g, " ").trim().replace(/\s+/g, " ");
 
 /** Fill the optional fields of one agent block; `i` drives the colour cycle. */
 export function normalizeAgent(a, i = 0) {
   const id = String(a.id);
   const name = String(a.name ?? (id === DEFAULT_AGENT_ID ? DEFAULT_AGENT_NAME : capitalize(id)));
   const aliases = (a.aliases?.length ? a.aliases : defaultAliases(id, name)).map(aliasOf).filter(Boolean);
-  return { id, name, aliases: [...new Set(aliases)], color: a.color ?? PALETTE[i % PALETTE.length], glyph: a.glyph ?? DEFAULT_GLYPH, voice: a.voice ?? null, avatarKey: a.avatarKey ?? slug(name) };
+  return { id, name, aliases: [...new Set(aliases)], color: a.color ?? PALETTE[i % PALETTE.length], glyph: a.glyph ?? DEFAULT_GLYPH, voice: a.voice ?? null, avatarKey: a.avatarKey ?? slug(name), tagline: a.tagline ?? null };
 }
 
 function defaultAliases(id, name) {
@@ -64,6 +65,13 @@ export function readAgentsFile(file) {
   if (!file || !existsSync(file)) return null;
   const agents = JSON.parse(readFileSync(file, "utf8")).agents ?? [];
   return agents.map(normalizeAgent);
+}
+
+/** Role line of each delegation-only specialist (`team` in config/agents.json): id → tagline. */
+export function readTeamTaglines(file) {
+  if (!file || !existsSync(file)) return new Map();
+  const team = JSON.parse(readFileSync(file, "utf8")).team ?? [];
+  return new Map(team.filter((m) => m.id && m.tagline).map((m) => [String(m.id), String(m.tagline)]));
 }
 
 /**

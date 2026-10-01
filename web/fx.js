@@ -46,7 +46,7 @@ export function bootSequence(root, agentNames, linkUp, { onKey = () => {}, typeU
   };
   requestAnimationFrame(tick);
   setTimeout(() => {
-    const p = document.createElement("p"); p.className = "ready"; p.textContent = "Systèmes en ligne"; root.append(p);
+    const p = document.createElement("p"); p.className = "ready"; p.textContent = "Tout est prêt"; root.append(p);
   }, readyAt);
   setTimeout(() => root.classList.add("fade"), readyAt + 700);
   return new Promise((done) => setTimeout(() => { root.hidden = true; done(); }, readyAt + 1000));

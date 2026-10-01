@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { discoverAgents, delegationTargets, loadAgents, buildSttPrompt, assignVoices, normalizeAgent, fnv1a, readVoiceIds, PALETTE, DEFAULT_GLYPH } from "../agents.mjs";
+import { discoverAgents, delegationTargets, loadAgents, readTeamTaglines, buildSttPrompt, assignVoices, normalizeAgent, fnv1a, readVoiceIds, PALETTE, DEFAULT_GLYPH } from "../agents.mjs";
 import { route } from "../router.mjs";
 
 const APP = new URL("../../", import.meta.url).pathname;
@@ -43,6 +43,12 @@ test("les spécialistes joignables seulement par délégation sont exclus du rai
   assert.deepEqual(delegationTargets({}), []);
 });
 
+test("un nom en plusieurs mots donne un alias en plusieurs mots", () => {
+  const [agent] = discoverAgents({ agents: { entries: { agenda: { identity: { name: "Michel Écrit" } } } } });
+  assert.deepEqual(agent.aliases, ["michel ecrit", "agenda"]);
+  assert.equal(agent.avatarKey, "michel-ecrit");
+});
+
 test("les agents découverts sont routables par le prénom", () => {
   const agents = discoverAgents(ocCfg);
   assert.deepEqual(route("Léa, quelle heure est-il ?", { agents, activeAgent: null, followUpUntil: 0, now: 1 }), { kind: "message", agentId: "lea", text: "quelle heure est-il?" });
@@ -63,6 +69,19 @@ test("loadAgents : fichier local, sinon openclaw.json, sinon l'exemple", () => {
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test("rôle affiché : sous-titre des agents vocaux et des spécialistes de l'équipe", () => {
+  const dir = mkdtempSync(join(tmpdir(), "jarvis-team-"));
+  try {
+    const file = join(dir, "agents.json");
+    writeFileSync(file, JSON.stringify({ agents: [{ id: "dev", name: "Michel Compile", tagline: "GitHub & Docker" }], team: [{ id: "implementer", name: "Michel Construit", tagline: "modifie le code" }, { id: "planner" }] }));
+    assert.equal(loadAgents({ app: APP, ocCfg, env: { JARVIS_AGENTS_FILE: file } }).agents[0].tagline, "GitHub & Docker");
+    assert.deepEqual([...readTeamTaglines(file)], [["implementer", "modifie le code"]]); // no tagline: left out
+    assert.equal(normalizeAgent({ id: "x" }).tagline, null);
+    assert.equal(readTeamTaglines(join(dir, "absent.json")).size, 0);
+    assert.equal(readTeamTaglines(null).size, 0);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("amorce Whisper : phrases complètes avec les prénoms, jamais une liste nue", () => {
   const p = buildSttPrompt(discoverAgents(ocCfg));
   assert.match(p, /^Michel, quelle heure est-il \? Stop\. Zoe, relis le rapport\. Jean-Luc, annule\. Léa, /);
@@ -72,8 +91,10 @@ test("amorce Whisper : phrases complètes avec les prénoms, jamais une liste nu
 });
 
 test("voix : mapping explicite prioritaire, sinon attribution stable et sans doublon", () => {
-  const voices = readVoiceIds(join(APP, "vendor/voices/voices.json"));
-  assert.ok(voices.length >= 4 && voices.every((v) => /^fr-[mf]-[a-z-]+$/.test(v)), voices.join());
+  const catalogue = readVoiceIds(join(APP, "vendor/voices/voices.json"));
+  assert.ok(catalogue.length >= 4 && catalogue.every((v) => /^fr-[mf]-[a-z-]+$/.test(v)), catalogue.join());
+  // A fixed list of 7 voices for the slot arithmetic below: it must not depend on the catalogue's size.
+  const voices = ["fr-m-a", "fr-f-b", "fr-m-c", "fr-f-d", "fr-m-e", "fr-f-f", "fr-m-g"];
   const team = discoverAgents(ocCfg);
   const auto = assignVoices(team, voices);
   assert.equal(new Set(auto.values()).size, team.length);                     // distinct timbres

@@ -25,7 +25,8 @@ result['accessCode'] = {'bits': 256, 'permissions': '0600', 'value': 'not export
 config_path = Path('/var/lib/jarvis/.openclaw/openclaw.json')
 config = json.loads(config_path.read_text())
 assert config_path.stat().st_mode & 0o777 == 0o600
-exec_agents = {'agenda', 'dev', 'fact_checker', 'implementer'}
+# Michel (main) holds his team's tools so that delegated runs keep them (a child is capped by its requester).
+exec_agents = {'agenda', 'dev', 'fact_checker', 'implementer', 'main'}
 assert config['tools']['exec']['mode'] == 'deny'
 for agent_id, entry in config['agents']['entries'].items():
     tools = entry['tools']
@@ -33,14 +34,14 @@ for agent_id, entry in config['agents']['entries'].items():
         assert tools['exec']['mode'] in ('ask', 'allowlist') and 'exec' in tools['alsoAllow'], agent_id
     else:
         assert '*' in tools['deny'] or {'exec', 'process'} <= set(tools['deny']), agent_id
-    if agent_id != 'implementer':
+    if agent_id not in ('implementer', 'main'):
         assert '*' in tools['deny'] or {'write', 'edit', 'apply_patch'} <= set(tools['deny']), agent_id
 delegators = {agent_id for agent_id, entry in config['agents']['entries'].items() if entry.get('subagents', {}).get('allowAgents')}
-assert delegators == {'orchestrator'}, delegators
+assert delegators == {'main'}, delegators
 assert config['agents']['defaults']['subagents']['maxSpawnDepth'] == 1
 assert config['gateway']['bind'] == 'loopback'
 assert config['cron']['enabled'] is False
-result['agentTools'] = 'exec allowlisted for agenda/dev/fact_checker/implementer only; writes for implementer only (own clone); only orchestrator delegates'
+result['agentTools'] = 'exec allowlisted for agenda/dev/fact_checker/implementer only; writes for implementer only (own clone); only Michel (main) delegates'
 
 ports = {8178, 8188, 8179, 8182, 8480, 11434, 18789}
 listeners = []

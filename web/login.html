@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#03050a">
+  <meta name="theme-color" content="#05030d">
   <title>Michel — accès</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
   <style>
     body { display: grid; place-content: center; justify-items: center; gap: 28px; grid-template: none; }
     form { display: grid; justify-items: center; gap: 18px; z-index: 2; }
-    h1 { font-weight: 200; letter-spacing: .6em; margin-right: -.6em; font-size: 22px; color: color-mix(in srgb, var(--c) 55%, white); text-shadow: 0 0 22px var(--c); }
-    input { width: 240px; text-align: center; padding: 13px 18px; border-radius: 99px; border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); background: rgba(3,5,10,.8); color: var(--ink); font: 300 18px var(--mono); letter-spacing: .3em; outline: none; }
-    input:focus { box-shadow: 0 0 24px color-mix(in srgb, var(--c) 30%, transparent); }
-    p { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--dim); min-height: 1.2em; }
+    h1 { font-weight: 300; letter-spacing: .5em; margin-right: -.5em; text-transform: uppercase; font-size: 24px; color: color-mix(in srgb, var(--c) 45%, white); text-shadow: 0 0 26px var(--c); }
+    input { width: 250px; text-align: center; padding: 14px 20px; border-radius: 99px; border: 0; box-shadow: 0 0 0 1px color-mix(in srgb, var(--c) 35%, transparent); background: var(--glass); color: var(--ink); font: 400 17px var(--font); letter-spacing: .12em; outline: none; backdrop-filter: blur(12px); transition: box-shadow .4s var(--soft); }
+    input:focus { box-shadow: 0 0 0 1px color-mix(in srgb, var(--c) 55%, transparent), 0 0 28px color-mix(in srgb, var(--c) 28%, transparent); }
+    p { font-size: 13px; color: var(--dim); min-height: 1.2em; }
     .shake { animation: shake .4s; } @keyframes shake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
   </style>
 </head>

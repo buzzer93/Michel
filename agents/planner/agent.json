@@ -1,7 +1,9 @@
 {
-  "name": "Planner",
+  "name": "Michel Organise",
   "emoji": "▦",
   "role": "specialist",
+  "tagline": "plans d'action",
+  "voice": "fr-m-grave",
   "description": "Creates execution plans: steps, dependencies, risks, acceptance criteria. Read-only.",
   "model": "openai/gpt-6-astra",
   "project": "read",

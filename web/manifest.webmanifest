@@ -1,2 +1,2 @@
 { "name": "Michel", "short_name": "Michel", "start_url": "/", "display": "fullscreen", "orientation": "any",
-  "background_color": "#03050a", "theme_color": "#03050a", "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }] }
+  "background_color": "#05030d", "theme_color": "#05030d", "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }] }

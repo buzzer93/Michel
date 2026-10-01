@@ -12,9 +12,10 @@ import { GatewayClient } from "@openclaw/gateway-client";
 import { PROTOCOL_VERSION } from "@openclaw/gateway-protocol/version";
 import { route } from "./router.mjs";
 import { ReplyStream, voiceBrief, cleanForSpeech, extractWindows, wantsWindow, historyEntries } from "./speech.mjs";
-import { describeTool } from "./tools.mjs";
+import { describeTool, spawnTarget, activeSubagents } from "./tools.mjs";
 import { BrowserWindows } from "./browser.mjs";
-import { loadAgents, delegationTargets, buildSttPrompt, assignVoices, readVoiceIds } from "./agents.mjs";
+import { loadAgents, readTeamTaglines, delegationTargets, buildSttPrompt, assignVoices, readVoiceIds, slug, PALETTE } from "./agents.mjs";
+import { SysSampler } from "./sysstats.mjs";
 
 const APP = join(dirname(fileURLToPath(import.meta.url)), "..");
 const WEB = join(APP, "web");
@@ -27,6 +28,8 @@ const debug = (...a) => settings.debug && log("[debug]", ...a);
 const ocCfg = JSON.parse(readFileSync(join(homedir(), ".openclaw/openclaw.json"), "utf8"));
 // Specialists reached only through another agent's delegation are not called by voice.
 const { agents: agentsCfg, source: agentsSource } = loadAgents({ app: APP, ocCfg, excludeIds: delegationTargets(ocCfg) });
+// Role line of the delegation-only specialists, from the same roster file (none when discovered).
+const teamTaglines = readTeamTaglines(agentsSource === "openclaw.json" ? null : agentsSource);
 // agent id → voice id of the catalogue (vendor/voices/voices.json); the TTS service applies the same
 // rule on its own, the id is sent along so both stay in step.
 const voiceOf = assignVoices(agentsCfg, readVoiceIds(join(APP, "vendor/voices/voices.json")));
@@ -124,6 +127,9 @@ function runFor(ev) {
   return newRun(agentId, clientId, p.runId);
 }
 const agentOfSessionKey = (key) => /^agent:([^:]+):/.exec(key ?? "")?.[1] ?? null;
+// Display name of any OpenClaw agent, including delegation-only specialists absent from the voice roster.
+const agentName = (id) => agentsCfg.find((a) => a.id === id)?.name ?? ocCfg.agents?.entries?.[id]?.identity?.name ?? ocCfg.agents?.entries?.[id]?.name ?? id;
+const delegations = new Map(); // delegated agent id → { from, since }: shown in the conversation until its sub-agent ends
 
 async function subscribeRoster() {
   // Roster of every session lets us show agents busy elsewhere (Slack, Telegram, cron…).
@@ -144,6 +150,13 @@ async function refreshExternalActivity() {
     for (const [id, st] of agentState) {
       const n = counts.get(id) ?? 0;
       if (st.external !== n) { st.external = n; pushAgent(id); }
+    }
+    const live = activeSubagents(res.sessions);
+    for (const [target, d] of delegations) {
+      // A few seconds' grace: the child session may not be listed yet right after the spawn call.
+      if (live.has(target) || Date.now() - d.since < 5000) continue;
+      delegations.delete(target);
+      broadcast({ t: "delegate", id: d.from, to: target, name: agentName(target), state: "done" });
     }
   } catch (e) { debug("sessions.list:", e?.message); }
 }
@@ -177,6 +190,12 @@ function onGatewayEvent(ev) {
         run.toolCount++;
         setStatus(run.agentId, "tool", tool);
         broadcast({ t: "pulse", id: run.agentId, tool });
+        const target = spawnTarget(d.name ?? d.toolName ?? d.tool ?? "", d.args ?? d.input ?? d.params);
+        if (target) {
+          delegations.set(target, { from: run.agentId, since: Date.now() });
+          broadcast({ t: "delegate", id: run.agentId, to: target, name: agentName(target), state: "running" });
+          setTimeout(refreshExternalActivity, 6000).unref();
+        }
       } else setStatus(run.agentId, "thinking");
     } else if (p.stream === "lifecycle" && p.data?.phase === "start") setStatus(run.agentId, "thinking");
     else if (!["assistant", "lifecycle", "run_status"].includes(p.stream)) debug("agent stream", p.stream, JSON.stringify(p.data).slice(0, 300));
@@ -235,6 +254,7 @@ function finishRun(runId, run) {
   run.sayChain.then(() => {
     if (st.runs === 0 && st.status !== "speaking") setStatus(run.agentId, "idle");
     broadcast({ t: "done", id: run.agentId, runId, tools: run.toolCount, ms: Date.now() - run.startedAt });
+    refreshUsage();
   });
 }
 
@@ -388,6 +408,39 @@ function send(clientId, msg, binary) {
   }
 }
 const broadcast = (msg) => { for (const c of clients.values()) if (c.ws.readyState === 1) c.ws.send(JSON.stringify(msg)); };
+// CPU / RAM / GPU for the dashboard, sampled only while at least one page is open.
+const sysSampler = new SysSampler({ onSample: (sample) => broadcast({ t: "sys", ...sample }) });
+// Model panel: the model behind each voice session and its provider's plan and quota windows
+// (usage.status). Refreshed after every turn and every minute while at least one page is open.
+let usageTimer = null;
+async function refreshUsage() {
+  if (!gatewayUp || !clients.size) return;
+  try {
+    const [usage, list] = await Promise.all([
+      gateway.request("usage.status", {}, { timeoutMs: 20000 }),
+      gateway.request("sessions.list", { activeMinutes: 60 * 24 * 30, limit: 200 }, { timeoutMs: 20000 }),
+    ]);
+    const models = {};
+    for (const s of list?.sessions ?? []) {
+      const id = agentOfSession(s.key);
+      if (id) models[id] = { provider: s.modelProvider ?? null, model: s.model ?? null, contextTokens: s.totalTokensFresh ? s.totalTokens ?? null : null, contextMax: s.contextTokens ?? null };
+    }
+    const providers = (usage?.providers ?? []).map((p) => ({
+      provider: p.provider, name: p.displayName ?? p.provider, plan: p.plan ?? null,
+      windows: (p.windows ?? []).map((w) => ({ label: w.label, usedPercent: w.usedPercent, resetAt: w.resetAt ?? null })),
+      balance: (p.billing ?? []).find((b) => b.type === "balance") ?? null,
+    }));
+    broadcast({ t: "usage", models, providers });
+  } catch (e) { debug("usage indisponible:", e?.message); }
+}
+
+// Delegation-only specialists (not in the voice roster), shown in the dashboard's team panel.
+const teamMembers = () => delegationTargets(ocCfg).filter((id) => !agentsCfg.some((a) => a.id === id)).map((id, i) => {
+  const name = agentName(id);
+  return { id, name, tagline: teamTaglines.get(id) ?? null, color: PALETTE[(agentsCfg.length + i) % PALETTE.length], avatar: avatarUrl(slug(name)) };
+});
+// The head of the team: the agent allowed to delegate. Every agent it delegates to hangs under it.
+const teamLead = () => Object.entries(ocCfg.agents?.entries ?? {}).find(([, e]) => e?.subagents?.allowAgents?.length)?.[0] ?? null;
 
 // ───────────────────────────── avatars ─────────────────────────────
 // One JPEG per agent (web/avatars/<prénom en minuscules, sans accents>.jpg) + one for the user. Without
@@ -435,14 +488,18 @@ function handleAvatarApi(req, res, url) {
 function onBrowser(ws) {
   const client = { id: randomUUID(), ws, activeAgent: null, followUpUntil: 0, speaking: false, spokenText: "", pendingUtt: null };
   clients.set(client.id, client);
+  sysSampler.start();
+  const team = teamMembers(), lead = teamLead();
   ws.send(JSON.stringify({
-    t: "hello", link: gatewayUp, followUpMs: settings.followUpMs,
+    t: "hello", link: gatewayUp, followUpMs: settings.followUpMs, team, teamLead: lead, branch: ocCfg.agents?.entries?.[lead]?.subagents?.allowAgents ?? [],
     user: { name: settings.userName, avatar: avatarUrl(USER_KEY), hasDefault: hasDefaultAvatar(USER_KEY) },
     agents: agentsCfg.map((a) => {
       const st = agentState.get(a.id);
-      return { id: a.id, name: a.name, color: a.color, glyph: a.glyph, avatar: avatarUrl(avatarKey(a.id)), hasDefault: hasDefaultAvatar(avatarKey(a.id)), status: st.status, tool: st.tool, busyElsewhere: st.external > 0 };
+      return { id: a.id, name: a.name, tagline: a.tagline, color: a.color, glyph: a.glyph, avatar: avatarUrl(avatarKey(a.id)), hasDefault: hasDefaultAvatar(avatarKey(a.id)), status: st.status, tool: st.tool, busyElsewhere: st.external > 0 };
     }),
   }));
+  usageTimer ??= setInterval(refreshUsage, 60000);
+  refreshUsage();
   ws.on("message", async (data, isBinary) => {
     try {
       if (isBinary) {
@@ -483,6 +540,7 @@ function onBrowser(ws) {
   });
   ws.on("close", () => {
     clients.delete(client.id);
+    if (!clients.size) { sysSampler.stop(); clearInterval(usageTimer); usageTimer = null; }
     browserWins.closeClient(client.id);
     // A page that vanishes mid-sentence must not leave its agent "speaking" forever.
     for (const [id, st] of agentState) if (st.status === "speaking" && ![...clients.values()].some((c) => c.speakingAgent === id)) setStatus(id, st.runs > 0 ? "thinking" : "idle");

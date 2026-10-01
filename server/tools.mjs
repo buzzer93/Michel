@@ -20,3 +20,22 @@ export function describeTool(name = "") {
   for (const [re, label, icon] of RULES) if (re.test(bare) || re.test(name)) return { label, icon };
   return { label: "outil", icon: "tool" };
 }
+
+/** Agent id targeted by a delegation call (OpenClaw `sessions_spawn` with `agentId`), else null. */
+export function spawnTarget(name = "", args) {
+  if (!/(^|__)sessions_spawn$/.test(String(name))) return null;
+  let input = args;
+  if (typeof input === "string") { try { input = JSON.parse(input); } catch { return null; } }
+  const id = input?.agentId;
+  return typeof id === "string" && /^[a-z0-9_-]+$/i.test(id) ? id : null;
+}
+
+/** Agent ids with a live sub-agent run in a `sessions.list` result (keys `agent:<id>:subagent:<uuid>`). */
+export function activeSubagents(sessions = []) {
+  const out = new Set();
+  for (const s of sessions) {
+    const id = /^agent:([^:]+):subagent:/.exec(s?.key ?? "")?.[1];
+    if (id && (s.hasActiveRun ?? s.sessionInfo?.hasActiveRun)) out.add(id);
+  }
+  return out;
+}

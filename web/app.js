@@ -6,8 +6,10 @@ import { renderMarkdown } from "./md.js";
 import { AvatarManager } from "./avatars.js";
 import { WindowManager } from "./windows.js";
 import { HistoryWindow } from "./history.js";
+import { Activity } from "./activity.js";
+import { Clock, TeamList, SessionPanel, ModelPanel, SysPanel, VoicePanel, StatusLights } from "./widgets.js";
 import { Parallax, bootSequence, spectrumBands } from "./fx.js";
-import { bootSfx, IGNITION, READY } from "./sfx.js";
+import { bootSfx, wakeChime, pttTone, IGNITION, READY } from "./sfx.js";
 
 const $ = (id) => document.getElementById(id);
 const STATE_WORD = { sleep: "veille", idle: "à l'écoute", listening: "je vous écoute", thinking: "réflexion", tool: "au travail", speaking: "", offline: "liaison perdue" };
@@ -20,6 +22,13 @@ let user = { name: "Vous", avatar: null, hasDefault: false };
 const avatarManager = new AvatarManager($("avatar-manager"), (text, level) => toast(text, level));
 const windows = new WindowManager($("windows"), agents, (msg) => send(msg));
 const historyWin = new HistoryWindow(windows, agents, (msg) => send(msg), () => user);
+const activity = new Activity($("activity"), agents);
+new Clock($("clock"));
+const team = new TeamList();
+const session = new SessionPanel($("session"));
+const modelPanel = new ModelPanel($("model"));
+const sys = new SysPanel($("sys"));
+const lights = new StatusLights($("lights"));
 let lastAgent = null;       // last agent spoken to: the history button opens its conversation
 let ws, active = null, awake = false, micOn = false, userSpeaking = false, linkUp = true, wsBackoff = 500;
 
@@ -52,6 +61,11 @@ function ensureAudio() {
     return Math.min(1, rms * (current ? 4.5 : 7));
   };
 }
+
+// Spectra for the dashboard's voice panel: the mic while it is open, the agent while it speaks.
+const scopeBuf = new Uint8Array(256);
+const bandsOf = (an, floor) => { an.getByteFrequencyData(scopeBuf); return spectrumBands(scopeBuf, floor).slice(); };
+new VoicePanel($("voice"), { mic: () => (micOn && analyserIn ? bandsOf(analyserIn, 36) : null), voice: () => (current && analyserOut ? bandsOf(analyserOut, 0) : null) });
 
 async function enqueue(header, bytes) {
   const item = { ...header, buffer: null };
@@ -111,9 +125,10 @@ async function startMic() {
         actx.createMediaStreamSource(stream).connect(analyserIn);
         return stream;
       },
-      onSpeechStart: () => { if (booting) return; userSpeaking = true; refreshState(); liveCaption(true); },
-      onVADMisfire: () => { userSpeaking = false; refreshState(); liveCaption(false); },
-      onSpeechEnd: (audio) => { if (booting) return; userSpeaking = false; refreshState(); sendUtterance(audio); },
+      // While push-to-talk records (and just after), the VAD's own detection of the same speech is ignored.
+      onSpeechStart: () => { if (booting || vadMuted()) return; userSpeaking = true; refreshState(); liveCaption(true); },
+      onVADMisfire: () => { if (vadMuted()) return; userSpeaking = false; refreshState(); liveCaption(false); },
+      onSpeechEnd: (audio) => { if (booting || vadMuted()) return; userSpeaking = false; refreshState(); sendUtterance(audio); },
     });
     await micVad.start();
     micOn = true;
@@ -137,6 +152,83 @@ function sendUtterance(f32) {
   send({ t: "utt", ms: Math.round(f32.length / 16) });
   ws.send(pcm.buffer);
 }
+
+// ───────────────────────────── push-to-talk ─────────────────────────────
+// Hold the mouse's "forward" side button to talk, release to send: everything heard in between goes out as
+// one utterance, without waiting for the VAD to decide where the speech ends. Push-to-talk records from its
+// own microphone stream, kept open between presses: the VAD closes and reopens its stream when it is paused
+// and resumed, and recording a closed stream sent silence (which Whisper turned into an invented sentence).
+const PTT_BUTTON = 4;              // MouseEvent.button: 3 = side "back", 4 = side "forward"
+const VAD_MUTE_AFTER_MS = 1500;    // with hands-free on, the VAD may still report the same speech after the release
+// Sent only when there is speech: given silence, Whisper invents a sentence (typically one of the example
+// sentences of its prompt, such as "Michel, où en est la livraison ?"). Speech = enough 20 ms frames louder
+// than PTT_VOICED_RMS (noise suppression keeps silence far below it).
+const PTT_VOICED_RMS = 0.02, PTT_MIN_VOICED_FRAMES = 8;
+let pttStream = null, ptt = null, vadMutedUntil = 0;
+const vadMuted = () => Boolean(ptt) || performance.now() < vadMutedUntil;
+
+async function pttMic() {
+  if (pttStream?.getAudioTracks().some((track) => track.readyState === "live")) return pttStream;
+  pttStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+  return pttStream;
+}
+
+/** Number of 20 ms frames (16 kHz) whose loudness reaches PTT_VOICED_RMS. */
+function voicedFrames(pcm16k) {
+  let frames = 0;
+  for (let i = 0; i + 320 <= pcm16k.length; i += 320) {
+    let sum = 0;
+    for (let j = i; j < i + 320; j++) sum += pcm16k[j] * pcm16k[j];
+    if (Math.sqrt(sum / 320) >= PTT_VOICED_RMS) frames++;
+  }
+  return frames;
+}
+
+async function pttStart() {
+  if (ptt || booting || !awake) return;
+  ptt = { pending: true };           // the stream may take a moment to open: a release meanwhile cancels
+  let stream;
+  try { stream = await pttMic(); } catch (e) { ptt = null; report(`push-to-talk micro : ${e.name} ${e.message}`); toast("Micro indisponible", "error"); return; }
+  if (!ptt?.pending) return;
+  const source = actx.createMediaStreamSource(stream), tap = actx.createScriptProcessor(4096, 1, 1), mute = actx.createGain();
+  mute.gain.value = 0;               // a ScriptProcessor only runs when connected to the output: silently
+  const chunks = [];
+  tap.onaudioprocess = (e) => chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+  source.connect(tap); tap.connect(mute); mute.connect(actx.destination);
+  source.connect(analyserIn);        // the orb and the voice panel follow the voice during the press
+  ptt = { source, tap, mute, chunks, startedAt: performance.now() };
+  pttTone(actx, true);
+  userSpeaking = true; refreshState(); liveCaption(true);
+}
+
+async function pttEnd() {
+  if (!ptt) return;
+  if (ptt.pending) { ptt = null; return; }
+  const { source, tap, mute, chunks, startedAt } = ptt;
+  const ms = Math.round(performance.now() - startedAt);
+  ptt = null; vadMutedUntil = performance.now() + VAD_MUTE_AFTER_MS;
+  source.disconnect(); tap.disconnect(); mute.disconnect();
+  pttTone(actx, false);
+  userSpeaking = false; refreshState();
+  const n = chunks.reduce((sum, c) => sum + c.length, 0);
+  if (ms < 300 || !n) return liveCaption(false); // a click, not speech
+  const raw = new Float32Array(n);
+  chunks.reduce((offset, c) => (raw.set(c, offset), offset + c.length), 0);
+  // The server expects 16 kHz mono: resample with an offline audio context.
+  const off = new OfflineAudioContext(1, Math.ceil((n * 16000) / actx.sampleRate), 16000);
+  const buf = off.createBuffer(1, n, actx.sampleRate); buf.copyToChannel(raw, 0);
+  const src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start();
+  const pcm = (await off.startRendering()).getChannelData(0);
+  const voiced = voicedFrames(pcm);
+  report(`push-to-talk : ${ms} ms, ${voiced} trames de voix${voiced < PTT_MIN_VOICED_FRAMES ? " (ignoré)" : ""}`);
+  if (voiced < PTT_MIN_VOICED_FRAMES) return liveCaption(false); // pressed without speaking
+  sendUtterance(pcm);
+}
+
+addEventListener("mousedown", (e) => { if (e.button === PTT_BUTTON) { e.preventDefault(); pttStart(); } });
+addEventListener("mouseup", (e) => { if (e.button === PTT_BUTTON) { e.preventDefault(); pttEnd(); } });
+addEventListener("auxclick", (e) => { if (e.button === PTT_BUTTON) e.preventDefault(); }); // no browser "forward"
+addEventListener("blur", () => pttEnd()); // released outside the window
 
 // ───────────────────────────── subtitles ─────────────────────────────
 const subs = $("subtitles");
@@ -171,6 +263,20 @@ function subtitle(id, text, seconds) {
   const total = words.reduce((n, w) => n + w.trim().length + 1, 0);
   let acc = 0;
   spans.forEach((s, i) => { setTimeout(() => s.classList.add("on"), (acc / total) * seconds * 1000 * 0.92); acc += words[i].trim().length + 1; });
+}
+
+// One conversation line per delegation ("Michel Commande → Michel Explore"), ticked when the sub-agent ends.
+const delegateLines = new Map(); // "from>to" → line
+function delegation(m) {
+  const key = `${m.id}>${m.to}`;
+  let el = delegateLines.get(key);
+  if (!el?.isConnected || (m.state === "running" && el.classList.contains("done"))) {
+    const from = agents.get(m.id);
+    el = addSub("delegate", from?.name ?? "", "", from?.color);
+    delegateLines.set(key, el);
+  }
+  el.classList.toggle("done", m.state === "done");
+  el.querySelector(".txt").textContent = `${m.state === "done" ? "✓" : "→"} ${m.name}`;
 }
 
 function heard(msg) {
@@ -211,7 +317,7 @@ function setActive(id, flash = true) {
   const a = agents.get(id); if (!a) return;
   const changed = active !== id;
   active = id; lastAgent = id;
-  crew.setActive(id);
+  crew.setActive(id); modelPanel.show(id);
   orb.setColor(a.color); backdrop.setColor(a.color);
   document.documentElement.style.setProperty("--c", a.color);
   if (changed) {
@@ -238,6 +344,10 @@ function refreshState() {
   orb.setState(state === "offline" ? "sleep" : state);
   const toolLabel = state === "tool" ? a.tool?.label : null;
   $("agent-state").textContent = toolLabel ?? (state === "idle" && !a ? "appelez un agent par son prénom" : STATE_WORD[state]) ?? "";
+  $("now-text").textContent = a ? `${a.name} · ${toolLabel ?? STATE_WORD[state] ?? ""}`.replace(/ · $/, "") : "Aucun agent actif";
+  lights.set("mic", micOn, micOn ? "ouvert" : "coupé");
+  const busy = [...agents.values()].filter((x) => x.status && x.status !== "idle").length;
+  lights.set("busy", busy > 0, String(busy));
 }
 
 // ───────────────────────────── detail panel ─────────────────────────────
@@ -272,8 +382,19 @@ function connect() {
         if (m.agents[0]) $("typebox").placeholder = `${m.agents[0].name}, …`;
         crew.setAgents(m.agents); syncAvatarManager();
         if (active && agents.has(active)) { const id = active; active = null; setActive(id, false); }
-        refreshState(); break;
-      case "link": linkUp = m.up; if (!m.up) toast("Gateway OpenClaw injoignable", "error"); refreshState(); break;
+        // Org chart: the head of the team first, every agent he delegates to on a branch under him —
+        // the voice agents (still callable by name) then the delegation-only specialists.
+        team.setMembers(m.team ?? []);
+        for (const a of m.agents) {
+          const node = document.querySelector(`.crew-node[data-id="${a.id}"]`), child = (m.branch ?? []).includes(a.id);
+          node?.classList.toggle("child", child);
+          // Same short label as the specialists' rows: "Écrit", not "Michel Écrit".
+          if (node && child && a.name.includes(" ")) node.querySelector(".meta b").textContent = a.name.slice(a.name.indexOf(" ") + 1);
+        }
+        if (m.teamLead) $("crew").append(team.el); else team.el.remove();
+        $("agents-count").textContent = `${m.agents.length + (m.team?.length ?? 0)} agents`;
+        activity.setLink(linkUp); lights.set("link", linkUp, linkUp ? "en ligne" : "hors ligne"); refreshState(); break;
+      case "link": linkUp = m.up; activity.setLink(m.up); lights.set("link", m.up, m.up ? "en ligne" : "hors ligne"); if (!m.up) toast("Gateway OpenClaw injoignable", "error"); refreshState(); break;
       case "agent": { const a = agents.get(m.id); if (a) { Object.assign(a, m); crew.update(m.id, m); refreshState(); } break; }
       case "avatar": {
         const target = m.id === "user" ? user : agents.get(m.id);
@@ -282,26 +403,26 @@ function connect() {
         if (m.id !== "user") { crew.setAvatar(m.id, m.avatar); if (m.id === active) showAvatar(target, true); }
         syncAvatarManager(); break;
       }
-      case "pulse": crew.pulse(m.id, m.tool); if (m.id === active) orb.flash(); break;
+      case "pulse": crew.pulse(m.id, m.tool); activity.log(m.id, m.tool?.label ?? "outil", "tool"); session.bump("tools"); if (m.id === active) orb.flash(); break;
+      case "delegate": delegation(m); team.delegate(m); if (m.state !== "done") session.bump("delegations"); activity.log(m.id, `${m.state === "done" ? "✓" : "→"} ${m.name}`, "delegate"); break;
       case "heard": heard(m); break;
       case "wake": setActive(m.id); chime(); break;
-      case "sent": details.delete(m.id); windows.closeAgent(m.id, "detail"); break;
+      case "sent": details.delete(m.id); windows.closeAgent(m.id, "detail"); activity.log(m.id, "demande reçue", "sent"); session.bump("requests"); break;
       case "say": enqueue(m, null); break;
       case "hush": hush(m.id); break;
       case "detail": if (m.markdown) { details.set(m.id, m.markdown); showDetailFor(m.id); } break;
       case "window": windows.open({ key: m.key, agentId: m.id, kind: "browser", title: m.title, url: m.url, w: m.w, h: m.h }); break;
       case "notice": toast((agents.get(m.id)?.name ? agents.get(m.id).name + " · " : "") + m.text, m.level); break;
-      case "done": historyWin.refresh(m.id); break;
+      case "done": historyWin.refresh(m.id); session.turn(m.ms); activity.log(m.id, `terminé en ${Math.max(1, Math.round(m.ms / 1000))} s${m.tools ? ` · ${m.tools} outil${m.tools > 1 ? "s" : ""}` : ""}`, "done"); break;
       case "history": historyWin.receive(m); break;
+      case "sys": sys.update(m); break;
+      case "usage": modelPanel.update(m); break;
     }
   };
 }
 
 function chime() {
-  if (!actx) return;
-  const t = actx.currentTime, g = actx.createGain(); g.connect(actx.destination);
-  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.06, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
-  for (const [f, d] of [[880, 0], [1320, 0.07]]) { const o = actx.createOscillator(); o.type = "sine"; o.frequency.value = f; o.connect(g); o.start(t + d); o.stop(t + 0.5); }
+  if (actx) wakeChime(actx);
 }
 
 let toastTimer;
@@ -311,9 +432,15 @@ function toast(text, level = "info") {
 }
 
 // ───────────────────────────── controls ─────────────────────────────
+// Hands-free listening (the VAD) is off by default: push-to-talk is enough. The mic button or "M" turns it on,
+// and the choice is remembered for the next visits.
+const HANDS_FREE_KEY = "jarvis.handsfree";
+const rememberHandsFree = (on) => { try { localStorage.setItem(HANDS_FREE_KEY, on ? "on" : "off"); } catch { /* storage blocked */ } };
+const handsFreeWanted = () => { try { return localStorage.getItem(HANDS_FREE_KEY) === "on"; } catch { return false; } };
+async function pauseMic() { await micVad?.pause(); micOn = false; userSpeaking = false; liveCaption(false); refreshState(); }
 async function toggleMic() {
-  if (micOn) { await micVad?.pause(); micOn = false; userSpeaking = false; liveCaption(false); refreshState(); }
-  else await startMic();
+  if (micOn) { await pauseMic(); rememberHandsFree(false); }
+  else { await startMic(); rememberHandsFree(micOn); }
 }
 const stopAll = () => { send({ t: "stop" }); hush(); };
 const toggleType = (show) => { const bar = $("typebar"); bar.hidden = show === undefined ? !bar.hidden : !show; if (!bar.hidden) $("typebox").focus(); };
@@ -344,8 +471,12 @@ $("gate-btn").onclick = async () => {
   $("gate").classList.add("open");
   setTimeout(() => $("gate").remove(), 900);
   awake = true;
-  $("agent-name").textContent = "Michel";
-  $("avatar-img").hidden = true; $("avatar-sigil").innerHTML = openclawSigilSvg("#38bdf8");
+  // Michel (the head of the team) greets: his portrait in the orb from the first frame, the OpenClaw
+  // emblem only while the roster has not arrived yet.
+  const lead = agents.get("main") ?? agents.values().next().value;
+  $("agent-name").textContent = lead?.name ?? "Michel";
+  if (lead) showAvatar(lead, false);
+  else { $("avatar-img").hidden = true; $("avatar-sigil").innerHTML = openclawSigilSvg("#22d3ee"); }
   refreshState();
   // Ignition: impact of the soundtrack + orb flash + a shockwave centred on the orb.
   setTimeout(() => {
@@ -363,7 +494,8 @@ $("gate-btn").onclick = async () => {
     booting = false;
     document.body.classList.remove("booting", "ignite");
   }
-  await mic;
+  await mic; // opened inside the click so the browser grants it; push-to-talk reuses it
+  if (micOn && !handsFreeWanted()) await pauseMic();
   if ("wakeLock" in navigator) navigator.wakeLock.request("screen").catch(() => {});
 };
 document.addEventListener("visibilitychange", () => { if (!document.hidden && actx?.state === "suspended") actx.resume(); });

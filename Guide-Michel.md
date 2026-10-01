@@ -2,7 +2,7 @@
 
 ## Utilisation
 
-1. Ouvrir **JARVIS-demarrer.cmd** puis attendre l'ouverture du navigateur.
+1. Ouvrir le lanceur Windows **JARVIS-demarrer.cmd** (par exemple depuis PowerShell : `& 'F:\PARA\01_Projets\code\perso\openclaw-vocal-assistants\JARVIS-demarrer.cmd'`) puis attendre l'ouverture du navigateur.
 2. Cliquer sur **ACTIVER** et autoriser le microphone pour `http://localhost:8480`.
 3. Dire « Michel, dis-moi bonjour » ou « Michel, explique-moi ce qu'est une étoile ».
 4. Le bouton clavier permet aussi d'écrire ; « Stop » interrompt la voix.
@@ -18,7 +18,7 @@ L'interface est accessible à <http://localhost:8480>. Un casque réduit les rep
 - Chemin technique des services : `/opt/jarvis`, montage du même dossier WSL, sans seconde copie du code. Le montage `opt-jarvis.mount` est activé au démarrage.
 - État et conversations OpenClaw : `/var/lib/jarvis/.openclaw`.
 - OpenClaw 2026.9.7, Node.js 24.21.0, Ollama 0.35.0.
-- Réponses : `qwen3.5:4b`, local, contexte de 16 384 tokens, réflexion désactivée.
+- Réponses de Michel : `openai/gpt-6-astra` (API OpenAI, facturée au token) ; en secours, si l'API échoue, `qwen3.5:4b` en local (contexte de 16 384 tokens, réflexion désactivée, conversation seulement).
 - Reconnaissance vocale : whisper.cpp v1.9.4 compilé avec `GGML_CUDA=1`, architecture CUDA 89, modèles `small` et `large-v3-turbo-q5_0`.
 - Voix : Supertonic 3 sur CPU ; Piper français en secours.
 - Services activés au démarrage d'Ubuntu. Le lanceur démarre WSL si nécessaire ; aucune tâche Windows de lancement à l'ouverture de session n'a été créée.
@@ -29,9 +29,9 @@ Tous les services écoutent exclusivement sur la boucle locale. Aucun port Inter
 
 Un code de 64 caractères aléatoires est conservé dans `/opt/jarvis/config/access-code.txt`, avec permissions privées. Comme prévu par l'application, les connexions locales n'ont pas à le saisir. Les requêtes utilisant un nom d'hôte étranger et les WebSockets d'origine étrangère sont rejetés.
 
-L'agent fonctionne en mode conversation : tous ses outils sont désactivés. Il ne peut pas exécuter de commandes, naviguer sur Internet, modifier des fichiers ou envoyer de messages. Les services sont privés d'accès aux disques Windows montés et aux dossiers personnels Linux. Ce durcissement de services n'est pas une machine virtuelle distincte : Windows et les administrateurs WSL gardent le contrôle.
+Michel est le chef d'équipe : il répond lui-même ou délègue, de sa propre initiative, à six Michel placés au même niveau (Écrit : mail et agenda ; Compile : GitHub et Docker ; Explore : recherche web ; Organise : plans ; Vérifie : vérification ; Construit : modifie le code dans son propre clone). Michel lui-même n'exécute aucune commande, ne modifie aucun fichier et n'envoie aucun message ; il lit le projet en lecture seule, sa mémoire et des pages web (`web_fetch`, nécessaire pour que l'équipe y ait accès : un agent délégué ne garde que les outils que Michel possède aussi). Les services sont privés d'accès aux disques Windows montés et aux dossiers personnels Linux. Ce durcissement de services n'est pas une machine virtuelle distincte : Windows et les administrateurs WSL gardent le contrôle.
 
-Après le téléchargement initial des logiciels et modèles, transcription, génération des réponses et synthèse vocale sont locales. Le modèle de 4 milliards de paramètres privilégie une bonne réactivité et la place disponible pour Whisper ; ses capacités sont plus limitées que celles des grands modèles hébergés. Les automatismes planifiés et le plugin de mémoire autonome sont désactivés ; l'historique des conversations reste conservé.
+Transcription et synthèse vocale restent locales. Les réponses passent par l'API OpenAI : ce que tu dis à Michel, et sa mémoire utile à la réponse, y est envoyé. Le modèle local de 4 milliards de paramètres ne sert qu'en secours ; ses capacités sont plus limitées, et il ne peut pas déléguer puisque l'équipe utilise l'API. Les automatismes planifiés et le plugin de mémoire autonome sont désactivés ; l'historique des conversations reste conservé.
 
 Le modèle a donné une réponse arithmétique erronée lors d'un test en conversation. Il n'est pas un calculateur fiable ; vérifier les réponses factuelles importantes. Les essais de fonctionnement distinguent cette limite du modèle du bon fonctionnement des transmissions audio et des services.
 

@@ -36,7 +36,7 @@
       "tempo": 1.0,
       "supertonic": {
         "voice": "M1",
-        "speed": 1.14
+        "speed": 1.0
       }
     },
     "fr-f-douce": {
@@ -64,7 +64,7 @@
       "tempo": 1.0,
       "supertonic": {
         "voice": "F2",
-        "speed": 1.08
+        "speed": 1.0
       }
     },
     "fr-m-direct": {
@@ -93,7 +93,7 @@
       "tempo": 1.0,
       "supertonic": {
         "voice": "M4",
-        "speed": 1.08
+        "speed": 1.0
       }
     },
     "fr-f-precise": {
@@ -121,7 +121,7 @@
       "tempo": 1.0,
       "supertonic": {
         "voice": "F4",
-        "speed": 0.98
+        "speed": 1.0
       }
     },
     "fr-m-grave": {
@@ -149,7 +149,7 @@
       "tempo": 1.0,
       "supertonic": {
         "voice": "M5",
-        "speed": 1.14
+        "speed": 1.0
       }
     },
     "fr-f-ferme": {
@@ -177,15 +177,13 @@
       "tempo": 1.0,
       "supertonic": {
         "voice": "F3",
-        "speed": 1.18
+        "speed": 1.0
       }
     },
     "fr-m-grave-robot": {
       "engine": "supertonic",
       "register": "m",
       "pitch": 1.0,
-      "fx": "robot",
-      "fx_amount": 0.85,
       "kokoro": {
         "voice": "ff_siwis",
         "speed": 1.0
@@ -195,7 +193,7 @@
         "speaker_id": 1,
         "length_scale": 1.02
       },
-      "note": "Homme grave : M3 (F0 ~106 Hz) + traitement robot. Supertonic 3 depuis le 2026-09-24. Avant (bloc pockettts conserve) : Homme grave (F0 ~122 Hz) + traitement robot (voix synthetique). Pocket TTS, timbre clone de axiom_gf.wav (LibriVox)",
+      "note": "Homme grave : M3 (F0 ~106 Hz) + traitement robot. Supertonic 3 depuis le 2026-09-24. Avant (bloc pockettts conserve) : Homme grave (F0 ~122 Hz) + traitement robot (voix synthetique). Pocket TTS, timbre clone de axiom_gf.wav (LibriVox) Effet robot retiré le 2026-10-01 (intonation écrasée) ; le remettre : \"fx\": \"robot\", \"fx_amount\": 0.85.",
       "openvoice": {
         "ref": "axiom_rab.wav",
         "speed": 1.0
@@ -207,7 +205,91 @@
       "tempo": 1.0,
       "supertonic": {
         "voice": "M3",
+        "speed": 1.0
+      }
+    },
+    "fr-m-curieux": {
+      "engine": "supertonic",
+      "register": "m",
+      "pitch": 1.0,
+      "kokoro": {
+        "voice": "am_michael",
+        "speed": 0.95
+      },
+      "piper": {
+        "model_file": "fr_FR-tom-medium.onnx",
+        "speaker_id": null,
+        "length_scale": 1.06
+      },
+      "note": "Homme curieux : Supertonic M2 (timbre natif libre). Michel Explore depuis le 2026-10-01.",
+      "openvoice": {
+        "ref": "morpheus_mk.wav",
         "speed": 0.94
+      },
+      "pockettts": {
+        "ref": "morpheus_mk.wav",
+        "ref_speed": 1.0
+      },
+      "tempo": 1.0,
+      "supertonic": {
+        "voice": "M2",
+        "speed": 1.0
+      }
+    },
+    "fr-m-sceptique": {
+      "engine": "supertonic",
+      "register": "m",
+      "pitch": 0.9,
+      "kokoro": {
+        "voice": "am_michael",
+        "speed": 0.95
+      },
+      "piper": {
+        "model_file": "fr_FR-tom-medium.onnx",
+        "speaker_id": null,
+        "length_scale": 1.06
+      },
+      "note": "Homme sceptique : Supertonic M1 abaissé (pitch 0.9) pour se distinguer de fr-m-clair. Michel Vérifie depuis le 2026-10-01.",
+      "openvoice": {
+        "ref": "morpheus_mk.wav",
+        "speed": 0.94
+      },
+      "pockettts": {
+        "ref": "morpheus_mk.wav",
+        "ref_speed": 1.0
+      },
+      "tempo": 1.0,
+      "supertonic": {
+        "voice": "M1",
+        "speed": 1.0
+      }
+    },
+    "fr-m-artisan": {
+      "engine": "supertonic",
+      "register": "m",
+      "pitch": 0.9,
+      "kokoro": {
+        "voice": "am_michael",
+        "speed": 0.95
+      },
+      "piper": {
+        "model_file": "fr_FR-tom-medium.onnx",
+        "speaker_id": null,
+        "length_scale": 1.06
+      },
+      "note": "Homme artisan : Supertonic M4 abaissé (pitch 0.9) pour se distinguer de fr-m-direct. Michel Construit depuis le 2026-10-01.",
+      "openvoice": {
+        "ref": "morpheus_mk.wav",
+        "speed": 0.94
+      },
+      "pockettts": {
+        "ref": "morpheus_mk.wav",
+        "ref_speed": 1.0
+      },
+      "tempo": 1.0,
+      "supertonic": {
+        "voice": "M4",
+        "speed": 1.0
       }
     }
   }

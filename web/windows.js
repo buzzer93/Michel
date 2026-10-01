@@ -19,10 +19,10 @@ export class WindowManager {
   /** Colour and badge of the agent a window belongs to (a history window switches agent in place). */
   setAgent(el, agentId) {
     const a = this.agents.get(agentId);
-    el.dataset.agent = agentId; el.style.setProperty("--c", a?.color ?? "#38bdf8");
+    el.dataset.agent = agentId; el.style.setProperty("--c", a?.color ?? "#22d3ee");
     const badge = el.querySelector(".badge");
     badge.title = a?.name ?? "";
-    badge.innerHTML = a?.avatar ? `<img src="${a.avatar}" alt="">` : sigilSvg(a?.name ?? "?", a?.color ?? "#38bdf8");
+    badge.innerHTML = a?.avatar ? `<img src="${a.avatar}" alt="">` : sigilSvg(a?.name ?? "?", a?.color ?? "#22d3ee");
   }
 
   create(spec) {

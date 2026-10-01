@@ -1,7 +1,7 @@
 // Crew rail: one node per agent + a scrolling "pulse lane" that draws what the agent has been
 // doing for the last 45 s. No text beyond a two-word label — the shape of the line tells the story:
-//   flat dim = idle · dashed = busy in another channel · wavy glow = thinking
-//   bright spikes = tool calls · dense bars = speaking
+//   flat dim = idle · dashed = busy in another channel · slow wavy glow = thinking
+//   glowing bubbles = tool calls · livelier wave = speaking
 import { sigilSvg } from "./sigil.js";
 
 const WINDOW_MS = 45000;
@@ -21,7 +21,7 @@ export class Crew {
       const el = document.createElement("button");
       el.className = "crew-node"; el.dataset.id = a.id; el.style.setProperty("--c", a.color);
       el.innerHTML = `<span class="ring">${a.avatar ? `<img src="${a.avatar}" alt="">` : sigilSvg(a.name, a.color)}<i class="badge"></i></span>
-        <span class="meta"><b>${a.name}</b><em></em></span><canvas class="lane" width="300" height="56"></canvas>`;
+        <span class="meta"><b>${a.name}</b>${a.tagline ? `<small class="tagline">${a.tagline}</small>` : ""}<em></em></span><canvas class="lane" width="300" height="56"></canvas>`;
       el.addEventListener("click", () => this.onSelect(a.id));
       this.root.append(el);
       const node = { a, el, label: el.querySelector("em"), canvas: el.querySelector("canvas"), segments: [], ticks: [], status: "idle", elsewhere: false, since: performance.now() };
@@ -81,10 +81,10 @@ export class Crew {
           if (s.elsewhere) c.setLineDash([3, 9]);
           c.moveTo(x0, mid); c.lineTo(x1, mid);
         } else if (s.status === "speaking") {
-          c.lineWidth = 3; c.shadowColor = color; c.shadowBlur = 10;
-          for (let px = x0; px < x1; px += 7) {
-            const h = 5 + 15 * Math.abs(Math.sin(px * 0.35 + s.from) * Math.sin(px * 0.11 + now / 300));
-            c.moveTo(px, mid - h); c.lineTo(px, mid + h);
+          c.lineWidth = 3; c.shadowColor = color; c.shadowBlur = 12;
+          for (let px = x0; px <= x1; px += 2) {
+            const y = mid + Math.sin(px * 0.16 + now / 180) * (4 + 10 * Math.abs(Math.sin(px * 0.045 + s.from)));
+            px === x0 ? c.moveTo(px, y) : c.lineTo(px, y);
           }
         } else {
           c.lineWidth = 2.5; c.shadowColor = color; c.shadowBlur = 12;
@@ -96,12 +96,12 @@ export class Crew {
         c.stroke();
       }
       c.setLineDash([]); c.globalAlpha = 1;
+      // Tool calls: glowing bubbles that swell when they appear, then drift up a little as they age.
       for (const k of n.ticks) {
         const px = x(k.t), age = (now - k.t) / 1000, pop = Math.max(0, 1 - age * 1.5);
-        c.beginPath(); c.strokeStyle = "#fff"; c.shadowColor = color; c.shadowBlur = 14 + pop * 14; c.lineWidth = 2.5;
         c.globalAlpha = Math.min(1, px / (W * 0.3));
-        c.moveTo(px, mid - 12 - pop * 8); c.lineTo(px, mid + 12 + pop * 8); c.stroke();
-        c.beginPath(); c.fillStyle = color; c.arc(px, mid - 16 - pop * 8, 3, 0, 7); c.fill();
+        c.beginPath(); c.fillStyle = color; c.shadowColor = color; c.shadowBlur = 12 + pop * 14;
+        c.arc(px, mid - Math.min(10, age * 1.2), 3.5 + pop * 4, 0, 7); c.fill();
       }
       c.globalAlpha = 1; c.shadowBlur = 0;
     }

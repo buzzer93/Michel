@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { route, findCall, echoScore } from "../router.mjs";
+import { spawnTarget, activeSubagents } from "../tools.mjs";
 import { ReplyStream, takeSentences, cleanForSpeech, wantsWindow, voiceBrief, historyEntries } from "../speech.mjs";
 
 // Fixture = the example team shipped with the repo (config/agents.example.json), so the assertions
@@ -57,6 +58,20 @@ test("pendant la parole : seul un appel explicite passe, l'écho est rejeté", (
 
 test("hallucinations Whisper ignorées", () => {
   for (const t of ["Sous-titres réalisés par la communauté d'Amara.org", "Merci.", "...", "[Musique]"]) assert.equal(route(t, ctx({ activeAgent: "neo", followUpUntil: 99999 })).kind, "ignored");
+});
+
+test("noms en deux mots partageant un prénom : le nom le plus long gagne", () => {
+  const team = [
+    { id: "main", aliases: ["michel"] },
+    { id: "orchestrator", aliases: ["michel commande"] },
+    { id: "agenda", aliases: ["michel ecrit"] },
+    { id: "dev", aliases: ["michel compile"] },
+  ];
+  assert.deepEqual(findCall("Michel Écrit, lis mes derniers mails.", team), { agentId: "agenda", rest: "lis mes derniers mails." });
+  assert.equal(findCall("Michel, quelle heure est-il ?", team).agentId, "main");
+  assert.equal(findCall("Hey Michel Commande, fais le point", team).agentId, "orchestrator");
+  assert.deepEqual(findCall("Relance les tests, Michel Compile", team), { agentId: "dev", rest: "Relance les tests" });
+  assert.equal(findCall("Michel écris un mot à Paul", team).agentId, "agenda"); // Whisper "écris" ≈ "écrit"
 });
 
 test("pas de faux positifs sur des mots proches", () => {
@@ -115,4 +130,19 @@ test("historique : phrases dites, sans brief ni outils", () => {
     { who: "agent", ts: 1200, text: "Il est **midi**.", detail: "| a | b |" },
     { who: "agent", ts: 1400, text: "", detail: "Réponse sans bloc voix." },
   ]);
+});
+
+test("délégations : agent visé par sessions_spawn, sous-agents encore actifs", () => {
+  assert.equal(spawnTarget("sessions_spawn", { agentId: "researcher", task: "…" }), "researcher");
+  assert.equal(spawnTarget("mcp__openclaw__sessions_spawn", '{"agentId":"fact_checker"}'), "fact_checker"); // claude-cli bridge, JSON string args
+  assert.equal(spawnTarget("sessions_spawn", { task: "sans agent" }), null);
+  assert.equal(spawnTarget("sessions_spawn", { agentId: "../etc" }), null);
+  assert.equal(spawnTarget("read", { agentId: "researcher" }), null);
+  const live = activeSubagents([
+    { key: "agent:researcher:subagent:1f2e", hasActiveRun: true },
+    { key: "agent:planner:subagent:9a8b", hasActiveRun: false },
+    { key: "agent:orchestrator:jarvis", hasActiveRun: true },
+    { key: "agent:fact_checker:subagent:77", sessionInfo: { hasActiveRun: true } },
+  ]);
+  assert.deepEqual([...live].sort(), ["fact_checker", "researcher"]);
 });

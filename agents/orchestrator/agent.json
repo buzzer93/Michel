@@ -1,8 +1,0 @@
-{
-  "name": "Atlas",
-  "emoji": "◈",
-  "role": "coordinator",
-  "model": "openai/gpt-6-astra",
-  "project": "read",
-  "tools": ["read", "sessions_spawn", "sessions_yield", "subagents", "sessions_history"]
-}

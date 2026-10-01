@@ -44,11 +44,13 @@ export function findCall(text, agents) {
   while (lead < norm.length && (FILLERS.has(norm[lead]) || norm[lead] === "")) lead++;
   let tail = norm.length - 1;
   while (tail > 0 && norm[tail] === "") tail--; // skip a detached "?" or "!"
-  const candidates = [lead, lead + 1, tail].filter((i, k, arr) => i >= 0 && i < norm.length && arr.indexOf(i) === k);
-  for (const i of candidates) {
-    const id = matchAgentToken(norm[i].replace(/'s$/, ""), agents);
+  // [start, length] spans; two-word names ("Michel Écrit") are tried first so they win over "Michel".
+  const spans = [[lead, 2], [tail - 1, 2], [lead, 1], [lead + 1, 1], [tail, 1]]
+    .filter(([i, n], k, arr) => i >= 0 && i + n <= norm.length && arr.findIndex(([j, m]) => j === i && m === n) === k);
+  for (const [i, n] of spans) {
+    const id = matchAgentToken(norm.slice(i, i + n).map((t) => t.replace(/'s$/, "")).join(" "), agents);
     if (!id) continue;
-    const kept = rawTokens.filter((_, k) => k !== i && !(k < i && i <= lead + 1 && FILLERS.has(norm[k])));
+    const kept = rawTokens.filter((_, k) => (k < i || k >= i + n) && !(k < i && i <= lead + 1 && FILLERS.has(norm[k])));
     const rest = kept.join(" ").replace(/^[\s,;:.!?-]+/, "").replace(/\s+([,.!?])/g, "$1").replace(/[,;:]+([.!?])/g, "$1").replace(/[,;:\s]+$/, "").trim();
     return { agentId: id, rest };
   }
