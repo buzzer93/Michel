@@ -25,30 +25,68 @@ prompt ne remplace pas le code qui la fait respecter (§3, §5).
 
 ---
 
-## Étape 0 — Socle : déploiement sûr et versionné (§17)
+## ~~Étape 0 — Socle : déploiement sûr et versionné (§17)~~ ✅
 
 Objectif : ne plus pouvoir déployer une configuration invalide, ne plus perdre de données au déploiement, et
 disposer d'un point de retour.
 
-- 0.1 Le script de déploiement valide la configuration **avant** de remplacer `openclaw.json` : il écrit un fichier
-  candidat, le fait valider par OpenClaw, et s'arrête sans rien toucher s'il est invalide.
-- 0.2 `USER.md` (préférences de l'utilisateur) n'est créé que s'il n'existe pas : un déploiement ne l'écrase plus.
-- 0.3 Nettoyage : fichiers `*:Zone.Identifier` (métadonnées Windows) supprimés et ignorés par git.
-- 0.4 Commit de l'état actuel sur une branche de travail (`agentic-os`), comme point de retour.
+- ~~0.1 Le script de déploiement valide la configuration **avant** de remplacer `openclaw.json` : il écrit un fichier
+  candidat, le fait valider par OpenClaw, et s'arrête sans rien toucher s'il est invalide.~~
+- ~~0.2 `USER.md` (préférences de l'utilisateur) n'est créé que s'il n'existe pas : un déploiement ne l'écrase plus.~~
+- ~~0.3 Nettoyage : fichiers `*:Zone.Identifier` (métadonnées Windows) supprimés et ignorés par git.~~
+- ~~0.4 Commit de l'état actuel sur une branche de travail (`agentic-os`), comme point de retour.~~
 
 **Fait quand** : une configuration volontairement invalide est refusée sans modifier `openclaw.json` ; un `USER.md`
 modifié à la main survit à un déploiement ; le commit existe sur la branche `agentic-os`.
 
-## Étape 1 — Secrets hors de portée des commandes d'agents (§10)
+**Fait le 2026-10-01.** Tests : une config injectée invalide (`tools.web.search.provider: openai`) est refusée
+(code 1, « Configuration OpenClaw invalide : rien n'a été modifié ») et l'empreinte sha256 de `openclaw.json` est
+inchangée, sans fichier candidat résiduel ; une ligne ajoutée à `USER.md` survit à un vrai déploiement ;
+commit `a8c265b` sur `agentic-os`. Également : avatars source (`web/avatars/michels/`) et sauvegardes
+(`config/*.before-*`) ignorés. Restent hors commit, à décider par l'utilisateur (le dépôt deviendra public) :
+`dossier_agentic_os/`. À examiner : un dépôt git imbriqué `server/.git` (créé le 30/09 par le compte `jarvis`).
 
-Le mot de passe du trousseau Gmail (`GOG_KEYRING_PASSWORD`) est chargé dans l'environnement du gateway. S'il est
-hérité par les commandes que lancent les agents, un test écrit par Michel Construit pourrait l'afficher, et il
-partirait chez OpenAI.
+## ~~Étape 1 — Isoler l'exécution de code des agents (§10)~~ ✅
 
-- 1.1 Vérifier ce qu'hérite une commande lancée par un agent (présence de la variable, sans jamais afficher sa valeur).
-- 1.2 Si elle est héritée : ne fournir le secret qu'à `gog` (et le jeton GitHub qu'à `gh`), plus à l'environnement général.
+Audit du 2026-10-01 (lecture seule, aucune valeur affichée) : les commandes lancées par les agents héritent de
+l'environnement et des groupes du gateway. Du code exécuté par un agent (`node --test` sur un fichier écrit par
+Michel Construit, ou un hook git) pourrait donc lire le mot de passe Gmail (`GOG_KEYRING_PASSWORD`), les jetons
+OpenAI/ChatGPT (`openclaw.sqlite`), les identifiants Claude et GitHub, utiliser le socket Docker (groupe `docker`
+= quasi root sur WSL) et exfiltrer par le réseau. De plus, le motif autorisé `project/[\w./*-]+` accepte `..`
+(sortie du dossier prévu). Il faudrait d'abord qu'une injection convainque un agent : c'est le scénario §10.
 
-**Fait quand** : une commande d'agent (`node --test`) ne voit aucune variable secrète, et `gog` / `gh` fonctionnent toujours.
+- ~~1.1 Audit de ce qu'atteint une commande d'agent~~ (constats ci-dessus).
+- ~~1.2 Motifs autorisés : interdire `..` dans les chemins de `node --test` et de `git -C`.~~
+  Fait le 2026-10-01 : `(?!.*\.\.)` en tête des motifs ; 8/8 cas vérifiés (`project/../…` refusé, chemins légitimes acceptés).
+- ~~1.3 Michel : sa propre liste de commandes devient vide (il garde l'outil `exec` seulement pour que ses délégués
+  conservent le leur), si les délégués gardent bien leurs commandes ; sinon, documenter la limite.~~
+  Fait le 2026-10-01 : Michel en `exec.mode: deny` ; lui-même → « exec denied: host=gateway security=deny » ;
+  Construit lancé par Michel exécute toujours `git -C project status`.
+- ~~1.4 Exécuter le code des agents (tests, git) dans un bac à sable sans secrets, sans socket Docker et sans réseau
+  (sandbox OpenClaw si elle le permet ici, sinon un exécuteur dédié).~~
+  Fait le 2026-10-01 : sandbox Docker d'OpenClaw pour Construit et Vérifie (image `jarvis-sandbox:node24`,
+  `deployment/sandbox/Dockerfile` : Node 24, git, python3 ; réseau coupé, racine en lecture seule, aucune capacité,
+  uid de jarvis, aucune variable d'environnement de l'hôte). `exec.host: "sandbox"` (avec `gateway` les commandes
+  partaient sur l'hôte). Vérifie voit le projet par des montages en lecture seule déclarés au conteneur (les montages
+  systemd n'existent que dans l'espace du gateway) ; dérogations `dangerouslyAllowExternalBindSources` et
+  `dangerouslyAllowReservedContainerTargets` limitées à Vérifie ; son propre espace est monté en `rw` (en `ro`,
+  Docker Desktop ne peut pas créer les points de montage) mais il n'a aucun outil d'écriture. Vue du projet
+  complétée par les fichiers d'exemple versionnés lus par les tests (`config/*.example.json`, `voices.json`).
+- ~~1.5 Retirer le groupe `docker` et le mot de passe Gmail de l'environnement général ; ne les fournir qu'à ce qui en
+  a besoin (`docker` pour Compile, `gog` pour Écrit), par le moyen le plus étroit disponible.~~
+  Réévalué le 2026-10-01 : sans objet après 1.3 et 1.4. Le gateway a besoin du groupe `docker` pour créer les bacs
+  à sable et Compile pour gérer les conteneurs ; Écrit a besoin du mot de passe pour `gog`. Plus aucun agent
+  n'exécute de code libre sur l'hôte (Michel : aucune commande ; Explore, Organise : pas d'exec ; Construit,
+  Vérifie : bac à sable ; Écrit, Compile : `gog` / `gh` / `docker` restreints). Risque résiduel limité à ces outils.
+
+**Fait quand** : un test lancé par un agent ne voit ni `GOG_KEYRING_PASSWORD`, ni les fichiers d'identifiants, ni le
+socket Docker, ni le réseau ; un chemin avec `..` est refusé ; `gog`, `gh`, `docker` (Compile) et les tests
+(Construit, Vérifie) fonctionnent toujours.
+
+**Fait le 2026-10-01.** Sonde lancée par Construit et par Vérifie : `{"uid":997,"secretNames":[],"readableFiles":[],
+"dockerSocket":false,"network":"none","cwd":"/workspace"}` (avant : mot de passe Gmail, 5 fichiers d'identifiants,
+socket Docker et réseau accessibles). Vérifie exécute `logic.test.mjs` + `agents.test.mjs` dans son bac à sable :
+25 réussis, 0 échec. Compile : `docker ps` fonctionne. `gog` fonctionne sur l'hôte.
 
 ## Étape 2 — Approbations réelles des actions sensibles (§9, §11)
 

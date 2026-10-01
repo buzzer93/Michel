@@ -70,9 +70,40 @@ def tools_of(agent_id):
     own = team[agent_id]['tools']
     return sorted(set(own).union(*(team[s]['tools'] for s in specialists))) if team[agent_id]['role'] == 'coordinator' else own
 def exec_of(agent_id):
-    if team[agent_id]['role'] == 'coordinator':
-        return [entry for s in specialists for entry in team[s].get('exec', [])]
-    return team[agent_id].get('exec', [])
+    # The coordinator keeps the exec tool (its delegates need it) but no command of its own: each delegate
+    # runs under its own allowlist.
+    return [] if team[agent_id]['role'] == 'coordinator' else team[agent_id].get('exec', [])
+# Read-only view of the repository mounted into each reading agent's workspace (systemd bind mounts
+# below): source folders and docs only, never config/ (secrets), certs/, vendor/ or .git. The only files taken from
+# config/ and vendor/ are the versioned examples the test suite reads (no secret in them).
+project_paths = ['server', 'web', 'tts', 'docs', 'deployment', 'systemd', 'bin', 'agents', 'README.md', 'INSTALLATION.md', 'UTILISATION.md',
+                 'config/agents.example.json', 'config/settings.example.json', 'vendor/voices/voices.json']
+# Agents that run code (tests, git: a test file written by an agent is arbitrary code) do it in a Docker sandbox
+# (deployment/sandbox/Dockerfile): no network, read-only root, no capability, the jarvis uid, and none of the
+# gateway's environment, so no secret, no credential file and no Docker socket. The systemd bind mounts below
+# only exist in the gateway's namespace, so the sandbox gets the same project views as explicit binds.
+SANDBOX_IMAGE = 'jarvis-sandbox:node24'
+def sandbox_of(agent_id):
+    spec = team[agent_id]
+    if not spec.get('exec'):
+        return None
+    root = '/workspace'   # commands start there (with read-only access the agent workspace itself is at /agent)
+    binds = []
+    if spec['project'] == 'read':
+        binds += [f'{app / name}:{root}/project/{name}:ro' for name in project_paths if (app / name).exists()]
+    if spec.get('reviews'):
+        binds.append(f'{workspace_of(spec["reviews"]) / "project"}:{root}/{spec["reviews"]}-work:ro')
+    docker = {'image': SANDBOX_IMAGE, 'user': f'{account.pw_uid}:{account.pw_gid}', 'network': 'none', 'readOnlyRoot': True,
+              'tmpfs': ['/tmp', '/var/tmp', '/run'], 'capDrop': ['ALL'], 'env': {'HOME': '/tmp'}, 'binds': binds}
+    if binds:
+        # The project views come from outside the agent workspace (/opt/jarvis) and land under /agent: both are
+        # refused by default. They are read-only code and docs (never config/, certs/ or .git); OpenClaw still
+        # blocks system paths, credential folders and the Docker socket.
+        docker.update(dangerouslyAllowExternalBindSources=True, dangerouslyAllowReservedContainerTargets=True)
+    # Always the agent's own workspace at /workspace: its project/ and *-work mountpoints already exist there (created
+    # below for the systemd views). With "ro", OpenClaw would use an empty separate workspace in which Docker Desktop
+    # cannot create the mountpoints. The reviewing agent still has no write tool; the views stay read-only.
+    return {'mode': 'all', 'backend': 'docker', 'scope': 'agent', 'workspaceAccess': 'rw', 'docker': docker}
 team_entries = {
     agent_id: {'name': spec['name'], 'identity': {'name': spec['name'], 'emoji': spec['emoji']},
                'workspace': str(workspace_of(agent_id)),
@@ -85,12 +116,11 @@ team_entries = {
                # policy apply for real. Commands: allowlist only, misses refused without asking. (Measured on
                # claude-cli: native tools bypass these rules, which is why the team does not use it.)
                'tools': {'profile': 'minimal', 'alsoAllow': tools_of(agent_id), 'deny': [tool for tool in risky_tools if tool not in tools_of(agent_id)],
-                         'exec': {'host': 'gateway', 'mode': 'allowlist' if exec_of(agent_id) else 'deny'}}}
+                         # A sandboxed agent's commands must run in its sandbox: "gateway" would run them on the host.
+                         'exec': {'host': 'sandbox' if sandbox_of(agent_id) else 'gateway', 'mode': 'allowlist' if exec_of(agent_id) else 'deny'}},
+               **({'sandbox': sandbox_of(agent_id)} if sandbox_of(agent_id) else {})}
     for agent_id, spec in team.items()
 }
-# Read-only view of the repository mounted into each reading agent's workspace (systemd bind mounts
-# below): source folders and docs only, never config/ (secrets), certs/, vendor/ or .git.
-project_paths = ['server', 'web', 'tts', 'docs', 'deployment', 'systemd', 'bin', 'agents', 'README.md', 'INSTALLATION.md', 'UTILISATION.md']
 
 # argPattern is a JS regex over the arguments (argv[0] excluded) joined by single spaces. Anything that
 # does not match is an approval miss; with no approval UI in Michel, askFallback turns it into a denial.
@@ -171,6 +201,8 @@ def validate_config(text):
     if result.returncode != 0:
         raise SystemExit('Configuration OpenClaw invalide : rien n’a été modifié.\n' + (result.stdout or result.stderr)[-3000:])
 
+if subprocess.run(['docker', 'image', 'inspect', SANDBOX_IMAGE], capture_output=True).returncode != 0:
+    subprocess.run(['docker', 'build', '-q', '-t', SANDBOX_IMAGE, str(app / 'deployment/sandbox')], check=True)
 config_text = json.dumps(config, indent=2, ensure_ascii=False)
 validate_config(config_text)
 owned_write(config_path, config_text)
