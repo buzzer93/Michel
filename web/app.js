@@ -453,22 +453,22 @@ $("btn-mic").onclick = toggleMic;
 $("btn-stop").onclick = stopAll;
 $("btn-type").onclick = () => toggleType();
 $("btn-avatars").onclick = () => avatarManager.open();
+const newConversation = () => send({ t: "conversation.new", id: active ?? lastAgent ?? "main" });
+$("btn-new").onclick = newConversation;
 $("btn-history").onclick = () => historyWin.open(active ?? lastAgent);
 $("typebar").onsubmit = (e) => { e.preventDefault(); const v = $("typebox").value.trim(); if (v) send({ t: "text", text: v }); $("typebox").value = ""; };
 addEventListener("keydown", (e) => {
   if (e.target === $("typebox")) { if (e.key === "Escape") toggleType(false); return; }
   if (e.key === "Escape") stopAll();
-const newConversation = () => send({ t: "conversation.new", id: active ?? lastAgent ?? "main" });
-$("btn-new").onclick = newConversation;
   else if (e.key === "/") { e.preventDefault(); toggleType(true); }
   else if (e.key.toLowerCase() === "m") toggleMic();
   else if (e.key.toLowerCase() === "h") historyWin.open(active ?? lastAgent);
+  else if (e.key.toLowerCase() === "n") newConversation();
 });
 
 $("gate-btn").onclick = async () => {
   ensureAudio(); await actx.resume();
   $("gate-btn").disabled = true;
-  else if (e.key.toLowerCase() === "n") newConversation();
   booting = true;
   // The mic opens now, inside the click: some browsers (Safari, iPad) only grant it within the user gesture.
   // What it hears during the startup sequence is ignored (see `booting`), so the sound effects never reach the VAD.
