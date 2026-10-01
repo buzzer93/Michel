@@ -7,7 +7,7 @@ import { AvatarManager } from "./avatars.js";
 import { WindowManager } from "./windows.js";
 import { HistoryWindow } from "./history.js";
 import { Activity } from "./activity.js";
-import { Clock, TeamList, SessionPanel, ModelPanel, SysPanel, VoicePanel, StatusLights } from "./widgets.js";
+import { Clock, TeamList, SessionPanel, ModelPanel, ApprovalCards, SysPanel, VoicePanel, StatusLights } from "./widgets.js";
 import { Parallax, bootSequence, spectrumBands } from "./fx.js";
 import { bootSfx, wakeChime, pttTone, IGNITION, READY } from "./sfx.js";
 
@@ -27,6 +27,7 @@ new Clock($("clock"));
 const team = new TeamList();
 const session = new SessionPanel($("session"));
 const modelPanel = new ModelPanel($("model"));
+const approvals = new ApprovalCards($("approvals"), (id, decision) => send({ t: "approval.resolve", id, decision }));
 const sys = new SysPanel($("sys"));
 const lights = new StatusLights($("lights"));
 let lastAgent = null;       // last agent spoken to: the history button opens its conversation
@@ -385,6 +386,7 @@ function connect() {
         // Org chart: the head of the team first, every agent he delegates to on a branch under him —
         // the voice agents (still callable by name) then the delegation-only specialists.
         team.setMembers(m.team ?? []);
+        approvals.sync(m.approvals);
         for (const a of m.agents) {
           const node = document.querySelector(`.crew-node[data-id="${a.id}"]`), child = (m.branch ?? []).includes(a.id);
           node?.classList.toggle("child", child);
@@ -417,6 +419,8 @@ function connect() {
       case "history": historyWin.receive(m); break;
       case "sys": sys.update(m); break;
       case "usage": modelPanel.update(m); break;
+      case "approval": approvals.show(m); chime(); activity.log(m.agentId ?? active, "autorisation demandée", "tool"); break;
+      case "approval-done": approvals.done(m.id, m.decision); break;
     }
   };
 }

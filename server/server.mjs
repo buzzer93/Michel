@@ -16,6 +16,7 @@ import { describeTool, spawnTarget, activeSubagents } from "./tools.mjs";
 import { BrowserWindows } from "./browser.mjs";
 import { loadAgents, readTeamTaglines, delegationTargets, buildSttPrompt, assignVoices, readVoiceIds, slug, PALETTE } from "./agents.mjs";
 import { SysSampler } from "./sysstats.mjs";
+import { approvalView, forbiddenReason, resolveMethod } from "./approvals.mjs";
 
 const APP = join(dirname(fileURLToPath(import.meta.url)), "..");
 const WEB = join(APP, "web");
@@ -76,7 +77,7 @@ const gateway = new GatewayClient({
   token: ocCfg.gateway?.auth?.token,
   minProtocol: PROTOCOL_VERSION,
   maxProtocol: PROTOCOL_VERSION,
-  caps: ["tool-events"],
+  caps: ["tool-events", "approvals", "exec-approvals"],
   onHelloOk: () => { gatewayUp = true; log("gateway: connecté"); broadcast({ t: "link", up: true }); subscribeRoster(); },
   onConnectError: (e) => log("gateway: erreur de connexion", e?.message),
   onClose: () => { if (gatewayUp) log("gateway: déconnecté"); gatewayUp = false; broadcast({ t: "link", up: false }); },
@@ -174,8 +175,50 @@ function setStatus(id, status, tool = null) {
   pushAgent(id);
 }
 
+// ───────────────────────────── approvals ─────────────────────────────
+// An agent wants to run a command outside its allowlist (sending a mail, restarting a container…): the dashboard
+// shows the exact command and the user approves or refuses it. Forbidden shapes are refused without asking.
+// Without an answer the request expires and OpenClaw refuses it.
+const pendingApprovals = new Map(); // id → normalized view (see approvals.mjs)
+
+async function resolveApproval(view, decision) {
+  try { await gateway.request(resolveMethod(view.kind), { id: view.id, decision }, { timeoutMs: 15000 }); }
+  catch (e) { log(`approbation ${view.id} : réponse refusée par le gateway (${e?.message})`); }
+}
+
+function onApprovalEvent(ev) {
+  const p = ev.payload ?? {};
+  if (/\.resolved$/.test(ev.event)) {
+    if (pendingApprovals.delete(String(p.id))) broadcast({ t: "approval-done", id: String(p.id), decision: p.decision ?? null });
+    return;
+  }
+  const view = approvalView(ev.event, p);
+  if (!view) return;
+  const agent = view.agentId ? agentName(view.agentId) : "Un agent";
+  const why = forbiddenReason(view.command);
+  if (why) {
+    log(`approbation refusée d'office (${why}) : ${agent} → ${view.command.slice(0, 200)}`);
+    broadcast({ t: "notice", id: view.agentId, text: `action refusée d'office : ${why}`, level: "error" });
+    return void resolveApproval(view, "deny");
+  }
+  const card = { ...view, agentName: agent };
+  pendingApprovals.set(view.id, card);
+  log(`approbation demandée : ${agent} → ${view.command.slice(0, 200)}`);
+  broadcast({ t: "approval", ...card });
+  if (view.expiresAtMs) setTimeout(() => { if (pendingApprovals.delete(view.id)) broadcast({ t: "approval-done", id: view.id, decision: "expired" }); }, Math.max(0, view.expiresAtMs - Date.now()) + 1000).unref();
+}
+
+/** The user's answer from the dashboard: only a decision the request offers, for a request still pending. */
+async function decideApproval(id, decision) {
+  const view = pendingApprovals.get(String(id ?? ""));
+  if (!view || !view.decisions.includes(decision)) return;
+  log(`approbation ${decision === "deny" ? "refusée" : "accordée"} par l'utilisateur : ${view.agentName} → ${view.command.slice(0, 200)}`);
+  await resolveApproval(view, decision);
+}
+
 function onGatewayEvent(ev) {
   const p = ev.payload ?? {};
+  if (/^(plugin|exec)\.approval\.(requested|resolved)$/.test(ev.event ?? "")) return void onApprovalEvent(ev);
   if (ev.event === "sessions.changed" || ev.event === "session.changed") return void refreshExternalActivity();
   const run = runFor(ev);
   if (!run) return;
@@ -491,7 +534,7 @@ function onBrowser(ws) {
   sysSampler.start();
   const team = teamMembers(), lead = teamLead();
   ws.send(JSON.stringify({
-    t: "hello", link: gatewayUp, followUpMs: settings.followUpMs, team, teamLead: lead, branch: ocCfg.agents?.entries?.[lead]?.subagents?.allowAgents ?? [],
+    t: "hello", link: gatewayUp, followUpMs: settings.followUpMs, team, teamLead: lead, approvals: [...pendingApprovals.values()], branch: ocCfg.agents?.entries?.[lead]?.subagents?.allowAgents ?? [],
     user: { name: settings.userName, avatar: avatarUrl(USER_KEY), hasDefault: hasDefaultAvatar(USER_KEY) },
     agents: agentsCfg.map((a) => {
       const st = agentState.get(a.id);
@@ -516,6 +559,7 @@ function onBrowser(ws) {
       else if (msg.t === "text" && typeof msg.text === "string") await handleUtterance(client, msg.text.slice(0, 2000), { typed: true });
       else if (msg.t === "select" && agentState.has(msg.id)) wake(client, msg.id, false);
       else if (msg.t === "stop") stopSpeech(client);
+      else if (msg.t === "approval.resolve") await decideApproval(msg.id, msg.decision);
       else if (msg.t === "history" && agentState.has(msg.id)) await sendHistory(client, msg.id);
       else if (msg.t === "clog") log("page:", String(msg.text ?? "").replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, " ").slice(0, 400)); // client-side errors (mic, audio, scripts)
       else if (msg.t === "win.input") await browserWins.input(client.id, msg);

@@ -87,6 +87,43 @@ export class SysPanel {
   }
 }
 
+/** Approval cards: an agent asks to run an exact command; the user approves it once or refuses it. Unanswered,
+ * the request expires on the gateway side (refused). */
+export class ApprovalCards {
+  constructor(root, onDecide) {
+    this.root = root; this.onDecide = onDecide; this.cards = new Map();
+  }
+
+  show(a) {
+    if (this.cards.has(a.id)) return;
+    const el = document.createElement("section");
+    el.className = "approval"; el.setAttribute("role", "alertdialog"); el.setAttribute("aria-label", `Autorisation demandée par ${a.agentName}`);
+    const total = a.expiresAtMs ? Math.max(1000, a.expiresAtMs - Date.now()) : 0;
+    el.innerHTML = `<header><b>${esc(a.agentName)}</b><span>demande ton autorisation</span></header>
+      ${a.reason ? `<p class="why">${esc(a.reason)}</p>` : ""}
+      <pre class="cmd">${esc(a.command || a.title)}</pre>
+      ${total ? `<i class="ttl" style="--t:${Math.round(total / 1000)}s"></i>` : ""}
+      <footer>${a.decisions.includes("deny") ? '<button data-d="deny" class="no">Refuser</button>' : ""}
+        ${a.decisions.includes("allow-once") ? '<button data-d="allow-once" class="yes">Approuver</button>' : ""}</footer>`;
+    el.addEventListener("click", (e) => {
+      const d = e.target.closest("button")?.dataset.d; if (!d) return;
+      el.querySelectorAll("button").forEach((b) => (b.disabled = true));
+      this.onDecide(a.id, d);
+    });
+    this.root.append(el); this.cards.set(a.id, el);
+  }
+
+  /** Resolved (by the user or elsewhere) or expired: the card leaves with the outcome. */
+  done(id, decision) {
+    const el = this.cards.get(id); if (!el) return;
+    this.cards.delete(id);
+    el.dataset.outcome = decision === "deny" ? "refusé" : decision === "expired" ? "expiré" : "approuvé";
+    el.classList.add("gone"); setTimeout(() => el.remove(), 1600);
+  }
+
+  sync(list = []) { for (const id of [...this.cards.keys()]) if (!list.some((a) => a.id === id)) this.done(id, "expired"); list.forEach((a) => this.show(a)); }
+}
+
 /** Model behind the active agent and its provider's plan usage (quota windows), as reported by the gateway. */
 export class ModelPanel {
   constructor(root) {

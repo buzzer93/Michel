@@ -88,23 +88,39 @@ socket Docker, ni le réseau ; un chemin avec `..` est refusé ; `gog`, `gh`, `d
 socket Docker et réseau accessibles). Vérifie exécute `logic.test.mjs` + `agents.test.mjs` dans son bac à sable :
 25 réussis, 0 échec. Compile : `docker ps` fonctionne. `gog` fonctionne sur l'hôte.
 
-## Étape 2 — Approbations réelles des actions sensibles (§9, §11)
+## ~~Étape 2 — Approbations réelles des actions sensibles (§9, §11)~~ ✅
 
 Aujourd'hui, l'envoi d'un mail est autorisé sans condition ; seule la consigne demande à l'agent d'attendre une
 confirmation. Une injection dans un mail pourrait la contourner.
 
-- 2.1 Étudier le protocole d'approbation d'OpenClaw (demande, événement, résolution) et ce qu'il fournit sur la commande exacte.
-- 2.2 Serveur : relayer les demandes d'approbation au dashboard et renvoyer la décision au gateway.
-- 2.3 Dashboard : carte d'approbation (agent, commande exacte, destinataire et contenu lisibles), boutons
-  Approuver / Refuser, expiration ; sans réponse, refus.
-- 2.4 Politique : les commandes en lecture restent autorisées directement ; les commandes à effet (envoyer,
+- ~~2.1 Étudier le protocole d'approbation d'OpenClaw (demande, événement, résolution) et ce qu'il fournit sur la commande exacte.~~
+  Fait : événements `exec|plugin.approval.requested/resolved`, réponse par `exec|plugin.approval.resolve` (`allow-once`,
+  `deny`), expiration 2 min. Un client ne les reçoit que s'il déclare la capacité `approvals` ; sans client capable, refus
+  immédiat (« no approval route »). Les agents sous Claude Code passent par `plugin.approval.*` avec la commande exacte.
+- ~~2.2 Serveur : relayer les demandes d'approbation au dashboard et renvoyer la décision au gateway.~~
+  Fait : `server/approvals.mjs` (+ tests) ; le serveur déclare `approvals`, refuse d'office les fichiers locaux
+  (`--body-file`, `--attach`…) et toute construction shell (`|`, `>`, `;`, `&`, `$(`…, même entre guillemets : un
+  message légitime contenant ces caractères doit être reformulé), et rejoue les demandes en cours à l'ouverture d'une page.
+- ~~2.3 Dashboard : carte d'approbation (agent, commande exacte, destinataire et contenu lisibles), boutons
+  Approuver / Refuser, expiration ; sans réponse, refus.~~
+- ~~2.4 Politique : les commandes en lecture restent autorisées directement ; les commandes à effet (envoyer,
   répondre, transférer, corbeille, archiver, créer / modifier / supprimer un événement, répondre à une invitation,
-  commenter / créer / fermer sur GitHub, démarrer / arrêter / redémarrer un conteneur) passent par l'approbation.
-- 2.5 Mail sans doublon : envoi en deux temps (créer le brouillon, puis envoyer **ce** brouillon après
-  approbation) ; jamais de renvoi automatique d'un envoi au résultat incertain.
+  commenter / créer / fermer sur GitHub, démarrer / arrêter / redémarrer un conteneur) passent par l'approbation.~~
+  Fait : listes d'Écrit et Compile réduites à la lecture et à la préparation (brouillons, lu / non lu) ; consignes
+  mises à jour (annoncer la demande, ne jamais relancer une action refusée ou expirée).
+- ~~2.5 Mail sans doublon : envoi en deux temps (créer le brouillon, puis envoyer **ce** brouillon après
+  approbation) ; jamais de renvoi automatique d'un envoi au résultat incertain.~~
+  Fait autrement : la carte d'un « envoyer ce brouillon » n'afficherait qu'un identifiant, pas le contenu. L'envoi se
+  fait donc en une commande dont la carte montre destinataire, sujet et corps ; chaque envoi exige sa propre
+  approbation, donc aucun renvoi ne peut partir sans un nouveau clic (et la consigne interdit de relancer).
 
 **Fait quand** : une demande d'envoi de mail fait apparaître la carte avec la commande exacte ; « Refuser » n'envoie
 rien ; « Approuver » envoie une seule fois ; une commande en lecture passe sans carte.
+
+**Fait le 2026-10-01.** Test avec un client se comportant comme le dashboard : lecture des non lus sans carte ;
+carte `gog gmail send --to … --subject "Test approbation Michel (refus)" --body …` refusée, rien envoyé ; même envoi
+approuvé : la boîte d'envoi contient exactement un « (accord) » et aucun « (refus) ». Compile : carte
+`docker restart watchless-web` refusée, conteneur non redémarré (heure de démarrage inchangée). 31 tests verts.
 
 ## Étape 3 — Contexte court et délégation sobre (§8, §13)
 
