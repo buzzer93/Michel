@@ -18,6 +18,7 @@ import { loadAgents, readTeamTaglines, delegationTargets, buildSttPrompt, assign
 import { SysSampler } from "./sysstats.mjs";
 import { approvalView, forbiddenReason, resolveMethod } from "./approvals.mjs";
 import { memoryStore } from "./memory.mjs";
+import { traceRecord, appendTrace, alertsFor, alertGate } from "./traces.mjs";
 
 const APP = join(dirname(fileURLToPath(import.meta.url)), "..");
 const WEB = join(APP, "web");
@@ -200,10 +201,13 @@ function onApprovalEvent(ev) {
   if (why) {
     log(`approbation refusée d'office (${why}) : ${agent} → ${view.command.slice(0, 200)}`);
     broadcast({ t: "notice", id: view.agentId, text: `action refusée d'office : ${why}`, level: "error" });
+    raiseAlert(`refus:${view.id}`, `${agent} : action refusée d'office (${why})`);
+    noteApproval(view.agentId, view.command, "refusée d'office");
     return void resolveApproval(view, "deny");
   }
   const card = { ...view, agentName: agent };
   pendingApprovals.set(view.id, card);
+  noteApproval(view.agentId, view.command, "demandée");
   log(`approbation demandée : ${agent} → ${view.command.slice(0, 200)}`);
   broadcast({ t: "approval", ...card });
   if (view.expiresAtMs) setTimeout(() => { if (pendingApprovals.delete(view.id)) broadcast({ t: "approval-done", id: view.id, decision: "expired" }); }, Math.max(0, view.expiresAtMs - Date.now()) + 1000).unref();
@@ -227,6 +231,7 @@ async function capDelegations(agentId) {
   delegationCount.set(agentId, n);
   if (n <= MAX_DELEGATIONS) return;
   log(`plafond de délégations dépassé (${n} > ${MAX_DELEGATIONS}) : demande à ${agentName(agentId)} arrêtée`);
+  raiseAlert(`plafond:${agentId}:${Date.now()}`, `${agentName(agentId)} : plafond de ${MAX_DELEGATIONS} délégations atteint, demande arrêtée`);
   broadcast({ t: "notice", id: agentId, level: "error", text: `demande arrêtée : plus de ${MAX_DELEGATIONS} délégations` });
   try { await gateway.request("chat.abort", { sessionKey: sessionKeyFor(agentId) }); } catch (e) { log("chat.abort:", e?.message); }
 }
@@ -257,11 +262,13 @@ function onGatewayEvent(ev) {
       if (["start", "started", "running", "call"].includes(phase) || (!phase && d.name)) {
         const tool = describeTool(d.name ?? d.toolName ?? d.tool ?? "", d.args ?? d.input ?? d.params);
         run.toolCount++;
+        (run.toolNames ??= []).push(String(d.name ?? d.toolName ?? d.tool ?? "outil"));
         setStatus(run.agentId, "tool", tool);
         broadcast({ t: "pulse", id: run.agentId, tool });
         const target = spawnTarget(d.name ?? d.toolName ?? d.tool ?? "", d.args ?? d.input ?? d.params);
         if (target) {
           capDelegations(run.agentId);
+          (run.delegatedTo ??= []).push(target);
           delegations.set(target, { from: run.agentId, since: Date.now() });
           broadcast({ t: "delegate", id: run.agentId, to: target, name: agentName(target), state: "running" });
           setTimeout(refreshExternalActivity, 6000).unref();
@@ -324,7 +331,7 @@ function finishRun(runId, run) {
   run.sayChain.then(() => {
     if (st.runs === 0 && st.status !== "speaking") setStatus(run.agentId, "idle");
     broadcast({ t: "done", id: run.agentId, runId, tools: run.toolCount, ms: Date.now() - run.startedAt });
-    refreshUsage();
+    refreshUsage().then(() => writeTrace(run));
   });
 }
 
@@ -452,6 +459,7 @@ async function sendToAgent(client, agentId, text) {
   delegationCount.set(agentId, 0); // a new user request: a fresh delegation budget
   const run = newRun(agentId, client.id, runId);
   run.allowWindow = allowWindow;
+  run.request = text;
   setStatus(agentId, "thinking");
   send(client.id, { t: "sent", id: agentId, runId, text });
   try {
@@ -484,6 +492,37 @@ const sysSampler = new SysSampler({ onSample: (sample) => broadcast({ t: "sys", 
 // Model panel: the model behind each voice session and its provider's plan and quota windows
 // (usage.status). Refreshed after every turn and every minute while at least one page is open.
 let usageTimer = null;
+// ───────────────────────────── traces and alerts ─────────────────────────────
+// One trace per user request (traces.mjs) in ~/traces, kept 30 days; alerts shown as notices and logged: plan quota
+// nearly used, an agent answering on a fallback model, a request stuck, an action refused outright, the delegation cap.
+const TRACES_DIR = settings.tracesDir ?? join(homedir(), "traces");
+const alertThresholds = { quotaPercent: settings.alerts?.quotaPercent ?? 85, stuckMinutes: settings.alerts?.stuckMinutes ?? 5 };
+const alertOnce = alertGate();
+let lastUsage = null;
+
+function raiseAlert(key, text) {
+  if (!alertOnce(key)) return;
+  log(`alerte : ${text}`);
+  broadcast({ t: "notice", level: "error", text: `⚠ ${text}` });
+}
+
+function checkAlerts() {
+  const primary = Object.fromEntries(Object.entries(ocCfg.agents?.entries ?? {}).map(([id, e]) => [id, e?.model?.primary]).filter(([, m]) => m));
+  for (const a of alertsFor({ usage: lastUsage, primary, runs: [...runs.values()], agentName, ...alertThresholds })) raiseAlert(a.key, a.text);
+}
+setInterval(checkAlerts, 20_000).unref();   // a pure computation: cheap enough to catch a stuck request early
+
+/** An approval asked or refused while a voice request of this agent runs: kept in its trace. */
+function noteApproval(agentId, command, outcome) {
+  const run = [...runs.values()].filter((r) => r.agentId === agentId).at(-1);
+  if (run) (run.approvals ??= []).push({ command: String(command).slice(0, 200), outcome });
+}
+
+function writeTrace(run) {
+  try { appendTrace(TRACES_DIR, traceRecord(run, { agentName: agentName(run.agentId), usage: lastUsage })); }
+  catch (e) { log("trace :", e?.message); }
+}
+
 // Governed memory (see memory.mjs): Michel's proposals waiting for the user, and his notes and lists. Sent when it
 // changes (checked with the usage refresh: after each answer and every minute).
 const memory = memoryStore(ocCfg.agents?.entries?.main?.workspace ?? join(homedir(), ".openclaw/workspace"));
@@ -515,7 +554,9 @@ async function refreshUsage() {
       windows: (p.windows ?? []).map((w) => ({ label: w.label, usedPercent: w.usedPercent, resetAt: w.resetAt ?? null })),
       balance: (p.billing ?? []).find((b) => b.type === "balance") ?? null,
     }));
+    lastUsage = { models, providers };
     broadcast({ t: "usage", models, providers });
+    checkAlerts();
   } catch (e) { debug("usage indisponible:", e?.message); }
 }
 
