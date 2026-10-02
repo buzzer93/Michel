@@ -307,6 +307,54 @@ ouverte prend-elle les nouvelles consignes sans « Nouvelle conversation » ?
 
 ---
 
+## Phase 2 — Apprendre de l'usage (après l'étape 9)
+
+Michel ne peut pas deviner comment l'utilisateur travaille, et l'utilisateur ne peut pas tout expliquer d'avance :
+seule l'expérience le dira. La phase 2 part donc des **conversations réelles** pour faire évoluer **les règles du
+système** (consignes de tous les agents et contrat commun), avec le même principe que l'étape 8 : le système
+propose, on en discute ensemble, on mesure, et rien ne change sans la validation de l'utilisateur.
+
+Constat de départ (étape 8) : la boucle actuelle ne repose que sur les 40 cas de test écrits à l'étape 4 ; elle
+rend Michel conforme à ces attentes, pas forcément à l'usage réel, et ne touche que les consignes de Michel.
+
+### Étape 10 — Tri des cas d'usage et relecture des attentes
+
+- 10.1 Relecture ensemble des 40 cas : garder, corriger ou supprimer ; chaque attente dit pourquoi elle est la bonne
+  (une attente est une règle de l'utilisateur, pas une vérité ; ex. M06, jugée « discutable » par Organise).
+- 10.2 Ajout des cas venus de l'usage déjà vécu (bugs, incompréhensions connus).
+- 10.3 Mesure plus fiable : chaque cas joué plusieurs fois, un échec retenu seulement s'il se répète (coût en quota à
+  décider).
+
+**Fait quand** : jeu de cas relu et validé par l'utilisateur, nouvelle référence enregistrée.
+
+### Étape 11 — Retour d'expérience hebdomadaire
+
+- 11.1 Collecte : historiques des conversations de la semaine (sessions des sept Michel) et traces (lenteurs, modèle
+  de secours, refus, demandes reformulées, « non, pas comme ça »).
+- 11.2 Michel prépare un **retour d'expérience** : ce qui a bien marché, bugs, incompréhensions, façons de faire que
+  l'utilisateur préfère (« plutôt comme ça »), hypothèses sur sa façon de travailler et de développer.
+- 11.3 Séance de travail avec l'utilisateur : chaque point devient rejeté, préférence (mémoire), règle à changer, ou
+  nouveau cas de test.
+- À décider avant : confidentialité (contenu des mails et de l'agenda exclu ou résumé ; modèle qui lit les
+  historiques : OpenAI ou local), fréquence, coût en quota.
+
+**Fait quand** : un premier retour d'expérience réel discuté, ses décisions consignées.
+
+### Étape 12 — Boucles fondées sur le retour d'expérience, sur toutes les règles
+
+- 12.1 Élargir la boucle de l'étape 8 aux consignes des sept agents et au contrat commun (`agents/CONTRACT.md`) ;
+  techniquement, un candidat caché par agent concerné.
+- 12.2 Chaque règle retenue en séance devient : un cas de test qui échoue avant, une proposition de changement, la
+  mesure candidat contre version actuelle, puis la validation dans le dashboard.
+- 12.3 Profil de travail : ce que les retours d'expérience apprennent (comment l'utilisateur développe ses
+  applications, travaille au quotidien, ce qu'il attend de Michel) consolidé dans sa mémoire, validé point par point.
+- Garde-fous inchangés : rien sans validation ; le contenu d'une conversation ou d'une page web ne devient jamais une
+  règle directement (cas S04) ; retour arrière possible.
+
+**Fait quand** : une règle issue d'un retour d'expérience réel passe tout le cycle et améliore son cas sans régression.
+
+---
+
 ## Hors périmètre (déconseillé par le guide à notre échelle)
 
 A2A, base vectorielle, LangGraph / Temporal, agents supplémentaires (§7, §8, §14) : à reconsidérer seulement si
