@@ -61,6 +61,22 @@ More detailed documents, in French: [UTILISATION.md](UTILISATION.md) (day-to-day
 - **Generic.** Nothing about your team is hard-coded: agents are discovered from your OpenClaw
   configuration.
 
+With the bundled team (`agents/`, deployed by `deployment/configure-services.py`), the dashboard also
+governs what the agents do (see `plan.md` for the design and the evidence of each step):
+
+- **Approvals.** Reading and preparing is free; anything that acts outside (sending mail, changing the
+  calendar, writing to GitHub, starting a container) shows the exact command on a card: allow once or
+  refuse. No answer means no.
+- **Governed memory, notes and reminders.** The lead agent *proposes* what to remember and the user
+  validates it; notes and lists are shown on screen; reminders are spoken when they come due.
+- **Traces and alerts.** One trace per request (model, duration, tools, delegations, approvals), kept
+  30 days; alerts for a high plan quota, a fallback model, a stuck request or an action refused outright.
+- **Evaluations and a weekly improvement loop.** `server/evals/run.mjs` replays 40 cases through the
+  real gateway. Every week a timer re-runs them; if a case fails, one agent proposes a change to the
+  lead agent's instructions, another commits it on a branch, a hidden copy of the lead agent is
+  evaluated with it, and the dashboard shows the before/after scores. Nothing is applied without the
+  user's click, and an applied change can be undone.
+
 ## How it works
 
 ```
@@ -327,6 +343,10 @@ default 4), `JARVIS_SUPERTONIC_STEPS` (quality steps, 1-32, default 8), `JARVIS_
 | `bin/jarvis certs` | regenerate the HTTPS certificate (after an IP change) |
 | `bin/jarvis test` | unit tests, end-to-end check, two-agent scenario |
 | `bin/jarvis uninstall` | remove the services (files are kept) |
+
+Agent evaluations (bundled team, run as the service account): `server/evals/run.mjs` writes a report to
+`docs/evals/`; `server/evals/improve.mjs` runs one pass of the improvement loop (weekly through
+`jarvis-improve.timer`), and `--apply-repo <id>` copies an applied change into the repository.
 
 Other checks: `node server/test/ui.mjs` drives the real page in headless Chrome with a fake microphone
 and saves screenshots to `/tmp/jarvis`; `.venv/bin/python -m unittest tts/test_fr_normalize.py` tests

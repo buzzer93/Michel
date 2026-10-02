@@ -293,7 +293,12 @@ ouverte prend-elle les nouvelles consignes sans « Nouvelle conversation » ?
 
 ## Étape 9 — Clôture
 
-- 9.1 Guide utilisateur (`Guide-Michel.md`) et documentation à jour.
+- ~~9.1 Guide utilisateur (`Guide-Michel.md`) et documentation à jour.~~
+  Fait : `Guide-Michel.md` réécrit (push-to-talk, raccourcis, équipe et modèles, autorisations, mémoire, rappels,
+  traces, évaluations, boucle d'amélioration hebdomadaire, `--apply-repo`) ; `README.md` : fonctions de gouvernance
+  et commandes d'évaluation. Non repris : `Guide-Michel-WSL.md`, ancienne variante (Qwen seul, sans outils) devenue
+  fausse, à supprimer ou remplacer selon la décision de l'utilisateur ; `UTILISATION.md` reste le guide générique du
+  projet (équipe d'exemple).
 - 9.2 Jeu d'évaluation repassé, comparé à la référence de l'étape 4.
 - 9.3 Commit final.
 
