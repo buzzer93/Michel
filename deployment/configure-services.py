@@ -177,7 +177,7 @@ config = {
     # Tool Search (on by default) hides schemas behind tool_search/tool_call: with at most seven tools per agent it
     # only misleads the model (measured: the researcher called the OpenAI-hosted web_search through tool_call and
     # gave up), so every agent sees its tools directly.
-    'tools': {'profile': 'minimal', 'deny': ['gateway', 'cron', 'message', 'nodes', 'plugins'], 'exec': {'host': 'gateway', 'mode': 'deny'}, 'fs': {'workspaceOnly': True}, 'elevated': {'enabled': False}, 'codeMode': {'enabled': False}, 'toolSearch': False,
+    'tools': {'profile': 'minimal', 'deny': ['gateway', 'message', 'nodes', 'plugins'], 'exec': {'host': 'gateway', 'mode': 'deny'}, 'fs': {'workspaceOnly': True}, 'elevated': {'enabled': False}, 'codeMode': {'enabled': False}, 'toolSearch': False,
               'loopDetection': {'enabled': True},   # stops an agent repeating the same tool calls without progress
               # The global layer grants the union of what agents declare, so it never hides a tool an agent was
               # given; each agent's own profile, alsoAllow and deny still narrow it down.
@@ -191,7 +191,12 @@ config = {
     # A new conversation each day at 04:00 (on the next message): the context stays short (it reached ~46,000
     # tokens per voice exchange); what matters is kept by the memory.
     'session': {'reset': {'mode': 'daily', 'atHour': 4}},
-    'cron': {'enabled': False},
+    # Reminders and timers (plan step 7): only Michel has the cron tool (agents/main); one-shot jobs created from his
+    # voice conversation come back into it, and the dashboard speaks them.
+    'cron': {'enabled': True},
+    # Enabling cron also starts OpenClaw's weekly autonomous "skill collection review" for every agent (seen running
+    # tools on its own): off, nothing runs unless the user asked for it.
+    'skills': {'workshop': {'autonomous': {'mode': 'off'}}},
     'discovery': {'mdns': {'mode': 'off'}},
     'update': {'checkOnStart': False, 'auto': {'enabled': False}}
 }

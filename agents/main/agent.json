@@ -7,5 +7,5 @@
   "fallbacks": ["anthropic/claude-sonnet-5-5", "ollama/qwen3.5:4b"],
   "voice": "fr-m-grave-robot",
   "project": "read",
-  "tools": ["read", "sessions_spawn", "sessions_yield", "subagents", "sessions_history", "memory_search", "memory_get"]
+  "tools": ["read", "sessions_spawn", "sessions_yield", "subagents", "sessions_history", "memory_search", "memory_get", "cron"]
 }

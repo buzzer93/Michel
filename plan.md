@@ -217,14 +217,28 @@ plafond de délégations, demande bloquée (recherche d'Explore de 67 s), refus 
 Constat en passant : à 14 h 23 les 7 services avaient été arrêtés (arrêt complet) ; gateway et Ollama relancés pour
 le test.
 
-## Étape 7 — Rappels et minuteurs (§9)
+## ~~Étape 7 — Rappels et minuteurs (§9)~~ ✅
 
 Seulement maintenant : un agent qui agit à heure fixe doit d'abord être borné (étape 2) et tracé (étape 6).
 
-- 7.1 Planification OpenClaw activée pour Michel seul (rappels, minuteurs).
-- 7.2 Le dashboard annonce le rappel à voix haute au moment prévu (page ouverte).
+- ~~7.1 Planification OpenClaw activée pour Michel seul (rappels, minuteurs).~~
+  Fait : `cron.enabled`, outil retiré de l'interdiction globale et donné à Michel seul (`agents/main/agent.json`) ;
+  consigne : tâche ponctuelle (`at`) dans la conversation en cours, supprimée après exécution, jamais récurrente sans
+  demande explicite. Effet de bord découvert et coupé : activer `cron` lançait aussi la « revue des compétences »
+  autonome hebdomadaire d'OpenClaw pour chaque agent (actions non demandées, une commande avec `|` refusée d'office
+  a été la première alerte) → `skills.workshop.autonomous.mode: "off"`.
+- ~~7.2 Le dashboard annonce le rappel à voix haute au moment prévu (page ouverte).~~
+  Fait : le résultat d'une tâche arrive dans la conversation vocale comme message de transcription
+  (`session.message`, modèle `automation-result`), hors de tout tour de chat ; le serveur s'abonne aux messages des
+  sessions vocales et dit ce message comme une réponse (page qui a parlé en dernier, sinon toute page ouverte).
+  Limite : sans page ouverte, le rappel reste écrit dans l'historique mais n'est pas dit.
 
 **Fait quand** : « Michel, rappelle-moi dans 2 minutes de boire de l'eau » est annoncé à l'heure, une seule fois.
+
+**Fait le 2026-10-02.** « Michel, rappelle-moi dans 1 minute de prendre une pause » à 15:02:10 → « C'est noté… à
+quinze heures trois et trente secondes » → « C'est le moment de prendre une pause » dit à 15:03:35, une seule fois ;
+la tâche s'est supprimée (« No automations »). Premier essai à 2 minutes : rappel exécuté à l'heure et écrit dans la
+conversation, mais pas dit (événement non écouté) → corrigé ci-dessus.
 
 ## Étape 8 — Boucle d'amélioration (§4, §8, §12)
 

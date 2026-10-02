@@ -123,7 +123,9 @@ function runFor(ev) {
     runs.delete(waiting.runId); waiting.runId = p.runId; runs.set(p.runId, waiting);
     return waiting;
   }
-  const clientId = lastClientFor.get(agentId);
+  // A reply nobody just asked for (a reminder coming due, a delegated result) goes to the page that last spoke to
+  // the agent, else to any open page: after a restart nobody has spoken yet.
+  const clientId = lastClientFor.get(agentId) ?? clients.keys().next().value;
   if (!clientId) return null;
   debug("run ouvert pour une réponse non sollicitée", agentId, p.runId);
   setStatus(agentId, "thinking");
@@ -137,7 +139,32 @@ const delegations = new Map(); // delegated agent id → { from, since }: shown 
 async function subscribeRoster() {
   // Roster of every session lets us show agents busy elsewhere (Slack, Telegram, cron…).
   try { await gateway.request("sessions.subscribe", {}); } catch (e) { debug("sessions.subscribe indisponible:", e?.message); }
+  // Transcript messages of the voice sessions: a reminder coming due arrives this way (see onAutomationMessage).
+  for (const a of agentsCfg) {
+    try { await gateway.request("sessions.messages.subscribe", { key: sessionKeyFor(a.id) }); } catch (e) { debug("sessions.messages.subscribe:", a.id, e?.message); }
+  }
   refreshExternalActivity();
+}
+
+// A reminder or timer coming due (plan step 7): OpenClaw writes the one-shot job's answer into the voice conversation
+// as a transcript message ("automation-result"), outside any chat run. It is spoken like an ordinary answer, on the
+// page that last spoke to the agent, else on any open page.
+const spokenAutomation = new Set();
+function onAutomationMessage(p) {
+  const agentId = agentOfSession(p.sessionKey), m = p.message;
+  if (!agentId || m?.role !== "assistant" || m.model !== "automation-result") return;
+  const id = String(p.messageId ?? p.messageSeq ?? m.timestamp ?? "");
+  if (spokenAutomation.has(id)) return;
+  spokenAutomation.add(id);
+  const text = (Array.isArray(m.content) ? m.content : []).filter((c) => c.type === "text").map((c) => c.text).join("");
+  const clientId = lastClientFor.get(agentId) ?? clients.keys().next().value;
+  if (!text || !clientId) return log(`rappel non dit (aucune page ouverte) : ${agentName(agentId)}`);
+  const run = newRun(agentId, clientId, `automation-${id || randomUUID()}`);
+  run.seen = true; run.request = "(rappel programmé)";
+  speak(run, run.stream.update(text, true));
+  sendDetail(run, true);
+  finishRun(run.runId, run);
+  log(`rappel dit : ${agentName(agentId)}`);
 }
 
 async function refreshExternalActivity() {
@@ -249,6 +276,7 @@ async function newConversation(client, agentId) {
 
 function onGatewayEvent(ev) {
   const p = ev.payload ?? {};
+  if (ev.event === "session.message") return void onAutomationMessage(p);
   if (/^(plugin|exec)\.approval\.(requested|resolved)$/.test(ev.event ?? "")) return void onApprovalEvent(ev);
   if (ev.event === "sessions.changed" || ev.event === "session.changed") return void refreshExternalActivity();
   const run = runFor(ev);
