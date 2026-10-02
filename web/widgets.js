@@ -124,6 +124,31 @@ export class ApprovalCards {
   sync(list = []) { for (const id of [...this.cards.keys()]) if (!list.some((a) => a.id === id)) this.done(id, "expired"); list.forEach((a) => this.show(a)); }
 }
 
+/** Governed memory: Michel's proposals (validated → remembered, rejected → dropped) and his notes and lists. */
+export class MemoryPanel {
+  constructor(root, onDecide) {
+    this.onDecide = onDecide;
+    root.innerHTML = panelHead("Mémoire", "") + `<div class="mem-body"><ul class="proposals"></ul><div class="notes"></div></div>`;
+    [this.aux, this.props, this.notes] = [".aux", ".proposals", ".notes"].map((s) => root.querySelector(s));
+    this.props.addEventListener("click", (e) => {
+      const b = e.target.closest("button"); if (!b) return;
+      b.closest("li").classList.add("deciding");
+      this.onDecide(b.dataset.id, b.dataset.accept === "1");
+    });
+  }
+
+  update({ proposals = [], notes = [] }) {
+    this.aux.textContent = proposals.length ? `${proposals.length} à valider` : "";
+    this.props.innerHTML = proposals.map((p) => `<li><span class="kind">${esc(p.kind)}</span><span class="txt">${esc(p.text)}</span>
+      <button data-id="${esc(p.id)}" data-accept="1" title="Valider : Michel s'en souviendra">✓</button><button data-id="${esc(p.id)}" data-accept="0" title="Rejeter">✕</button></li>`).join("");
+    const items = (text) => text.split("\n").map((l) => /^\s*-\s*\[( |x|X)\]\s*(.+)$/.exec(l)).filter(Boolean)
+      .map((m) => `<li class="${m[1] === " " ? "" : "done"}">${esc(m[2])}</li>`).join("");
+    this.notes.innerHTML = notes.length
+      ? notes.map((n) => `<details><summary>${esc(n.name)}</summary><ul>${items(n.text) || `<li>${esc(n.text.slice(0, 200))}</li>`}</ul></details>`).join("")
+      : `<p class="empty">Aucune note. « Michel, ajoute du lait à la liste de courses »</p>`;
+  }
+}
+
 /** Model behind the active agent and its provider's plan usage (quota windows), as reported by the gateway. */
 export class ModelPanel {
   constructor(root) {

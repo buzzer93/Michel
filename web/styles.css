@@ -119,6 +119,21 @@ body[data-state="sleep"] .pill.now i, body[data-state="offline"] .pill.now i { b
 .stats div { padding: 8px 10px; border-radius: 12px; background: rgba(139, 92, 246, .08); }
 .stats dt { font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); }
 .stats dd { margin: 2px 0 0; font: 600 20px var(--font); color: var(--ink); text-shadow: 0 0 12px rgba(34, 211, 238, .35); }
+/* memory panel: proposals to validate, notes and lists */
+.mem-body { padding: 8px 12px 12px; display: grid; gap: 8px; max-height: 32vh; overflow: auto; scrollbar-width: thin; }
+.proposals { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.proposals li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 10px; background: rgba(251, 191, 36, .08); box-shadow: inset 0 0 0 1px rgba(251, 191, 36, .25); }
+.proposals li.deciding { opacity: .4; }
+.proposals .kind { font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: #fbbf24; }
+.proposals .txt { font-size: 12px; color: var(--ink); }
+.proposals button { width: 24px; height: 24px; border: 0; border-radius: 50%; cursor: pointer; background: rgba(255, 255, 255, .08); color: var(--ink); }
+.proposals button[data-accept="1"]:hover { background: #34d399; color: #06281c; }
+.proposals button[data-accept="0"]:hover { background: #fb7185; color: #2a0710; }
+.notes details { padding: 2px 0; }
+.notes summary { cursor: pointer; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.notes ul { margin: 4px 0 0; padding-left: 18px; font-size: 12px; }
+.notes li.done { text-decoration: line-through; opacity: .55; }
+.notes .empty { margin: 0; font-size: 11px; color: var(--dim); }
 /* approval cards: an agent asks to run an exact command */
 #approvals { position: fixed; top: 72px; left: 50%; transform: translateX(-50%); z-index: 30; display: grid; gap: 10px; width: min(560px, calc(100vw - 32px)); pointer-events: none; }
 .approval { pointer-events: auto; position: relative; overflow: hidden; padding: 14px 16px 12px; border-radius: 16px; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);

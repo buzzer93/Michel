@@ -228,6 +228,14 @@ owned_write(workspace / 'IDENTITY.md', 'Nom : Michel\nLangue : français\nRôle 
 # USER.md holds the user's preferences: created once, never overwritten by a redeploy.
 if not (workspace / 'USER.md').exists():
     owned_write(workspace / 'USER.md', 'L’utilisateur souhaite une conversation en français.\n')
+# Governed memory: USER.md (preferences) and MEMORY.md (facts) are loaded at the start of every conversation and only
+# hold what the user validated in the dashboard; Michel proposes in propositions.md and keeps lists in notes/.
+if not (workspace / 'MEMORY.md').exists():
+    owned_write(workspace / 'MEMORY.md', '# Faits validés par l’utilisateur\n\n')
+if not (workspace / 'propositions.md').exists():
+    owned_write(workspace / 'propositions.md', '# Propositions de mémoire à valider dans le dashboard\n\n')
+(workspace / 'notes').mkdir(exist_ok=True)
+os.chown(workspace / 'notes', account.pw_uid, account.pw_gid)
 for agent_id, spec in tool_agents.items():
     agent_workspace = state / f'.openclaw/workspace-{agent_id}'
     owned_write(agent_workspace / 'SOUL.md', spec['soul'])
@@ -274,7 +282,7 @@ for agent_id, spec in team.items():
             bind_mounts.append(f'BindReadOnlyPaths={source}:{target}')
     if spec['role'] == 'coordinator':
         # Its instructions stay read-only for the gateway: the coordinator holds write tools (see tools_of).
-        for name in ['SOUL.md', 'AGENTS.md', 'IDENTITY.md', 'USER.md']:
+        for name in ['SOUL.md', 'AGENTS.md', 'IDENTITY.md', 'USER.md', 'MEMORY.md']:
             bind_mounts.append(f'BindReadOnlyPaths={workspace_of(agent_id) / name}')
     if spec.get('reviews'):
         target = workspace_of(agent_id) / f'{spec["reviews"]}-work'

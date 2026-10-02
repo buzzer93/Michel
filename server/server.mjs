@@ -17,6 +17,7 @@ import { BrowserWindows } from "./browser.mjs";
 import { loadAgents, readTeamTaglines, delegationTargets, buildSttPrompt, assignVoices, readVoiceIds, slug, PALETTE } from "./agents.mjs";
 import { SysSampler } from "./sysstats.mjs";
 import { approvalView, forbiddenReason, resolveMethod } from "./approvals.mjs";
+import { memoryStore } from "./memory.mjs";
 
 const APP = join(dirname(fileURLToPath(import.meta.url)), "..");
 const WEB = join(APP, "web");
@@ -483,7 +484,21 @@ const sysSampler = new SysSampler({ onSample: (sample) => broadcast({ t: "sys", 
 // Model panel: the model behind each voice session and its provider's plan and quota windows
 // (usage.status). Refreshed after every turn and every minute while at least one page is open.
 let usageTimer = null;
+// Governed memory (see memory.mjs): Michel's proposals waiting for the user, and his notes and lists. Sent when it
+// changes (checked with the usage refresh: after each answer and every minute).
+const memory = memoryStore(ocCfg.agents?.entries?.main?.workspace ?? join(homedir(), ".openclaw/workspace"));
+let memoryKey = "";
+function broadcastMemory(force = false) {
+  try {
+    const snap = memory.snapshot(), key = JSON.stringify(snap);
+    if (!force && key === memoryKey) return;
+    memoryKey = key;
+    broadcast({ t: "memory", ...snap });
+  } catch (e) { log("mémoire :", e?.message); }
+}
+
 async function refreshUsage() {
+  broadcastMemory();
   if (!gatewayUp || !clients.size) return;
   try {
     const [usage, list] = await Promise.all([
@@ -570,6 +585,7 @@ function onBrowser(ws) {
   }));
   usageTimer ??= setInterval(refreshUsage, 60000);
   refreshUsage();
+  try { ws.send(JSON.stringify({ t: "memory", ...memory.snapshot() })); } catch (e) { log("mémoire :", e?.message); }
   ws.on("message", async (data, isBinary) => {
     try {
       if (isBinary) {
@@ -587,6 +603,11 @@ function onBrowser(ws) {
       else if (msg.t === "select" && agentState.has(msg.id)) wake(client, msg.id, false);
       else if (msg.t === "stop") stopSpeech(client);
       else if (msg.t === "approval.resolve") await decideApproval(msg.id, msg.decision);
+      else if (msg.t === "proposal.decide" && typeof msg.id === "string") {
+        const p = memory.decide(msg.id, msg.accept === true);
+        if (p) log(`mémoire : proposition ${msg.accept === true ? "validée" : "rejetée"} (${p.kind}) : ${p.text.slice(0, 160)}`);
+        broadcastMemory(true);
+      }
       else if (msg.t === "conversation.new" && agentState.has(msg.id)) await newConversation(client, msg.id);
       else if (msg.t === "history" && agentState.has(msg.id)) await sendHistory(client, msg.id);
       else if (msg.t === "clog") log("page:", String(msg.text ?? "").replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, " ").slice(0, 400)); // client-side errors (mic, audio, scripts)
