@@ -385,7 +385,37 @@ RestartSec=5
 WantedBy=multi-user.target
 '''
 (unit_dir / 'openclaw-gateway.service').write_text(gateway_unit)
+# Weekly improvement loop (plan step 8): Tuesday evening, after the plan's weekly quota reset. The script itself gives
+# up while a proposal still waits for the user, when the quota is already high, or when Jarvis is stopped (it never
+# starts the gateway). Nothing it finds is applied without the user's click in the dashboard.
+(unit_dir / 'jarvis-improve.service').write_text('''[Unit]
+Description=Michel - boucle d'amelioration (evaluation complete, puis une proposition si un cas echoue)
+After=openclaw-gateway.service
+
+[Service]
+Type=oneshot
+User=jarvis
+Group=jarvis
+Environment=HOME=/var/lib/jarvis
+WorkingDirectory=/opt/jarvis/server
+ExecStart=/opt/jarvis-node/bin/node /opt/jarvis/server/evals/improve.mjs --weekly
+TimeoutStartSec=3h
+Nice=10
+NoNewPrivileges=true
+''')
+(unit_dir / 'jarvis-improve.timer').write_text('''[Unit]
+Description=Michel - boucle d'amelioration hebdomadaire
+
+[Timer]
+OnCalendar=Tue *-*-* 22:00:00
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+''')
 subprocess.run(['systemctl', 'daemon-reload'], check=True)
+subprocess.run(['systemctl', 'enable', '--now', 'jarvis-improve.timer'], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 # The exec allowlist lives in OpenClaw's SQLite state, not in openclaw.json: write it as the service user.
 subprocess.run(['runuser', '-u', 'jarvis', '--', 'env', 'HOME=/var/lib/jarvis', 'PATH=/opt/jarvis-node/bin:/usr/bin:/bin',
                 '/opt/jarvis-node/bin/node', '/var/lib/jarvis/openclaw-runtime/node_modules/openclaw/openclaw.mjs', 'approvals', 'set', '--stdin'],

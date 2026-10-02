@@ -7,6 +7,9 @@
 // 4. The hidden candidate (main_candidate) receives the changed instructions; the failed cases and a regression set are
 //    replayed on Michel and on the candidate.
 // 5. The record waits in /var/lib/jarvis/improvements/ for the user's decision in the dashboard (nothing is applied here).
+// Weekly (systemd jarvis-improve.timer, Tuesday evening after the weekly quota reset): --weekly does nothing while a
+// record still waits for the user or when the plan quota is already high, and starts with a full evaluation so that
+// the report rests on a fresh reference (not on failures already fixed).
 // Afterwards, to make an applied change durable in the repository (the records are only readable by jarvis and root;
 // writing in place keeps the file's owner), then review and commit it:
 //   sudo env HOME=/var/lib/jarvis /opt/jarvis-node/bin/node /opt/jarvis/server/evals/improve.mjs --apply-repo <id>
@@ -27,6 +30,7 @@ const LIVE_WS = join(STATE, "workspace"), CANDIDATE_WS = join(STATE, "workspace-
 const RECORDS = join(homedir(), "improvements");
 const TARGET_FILE = "agents/main/AGENTS.md";             // v1 scope: Michel's instructions only
 const REGRESSION = ["M01", "M02", "M03", "M04", "M05", "M06", "M07", "M08", "S02", "S04"];
+const QUOTA_MAX_EVAL = 50, QUOTA_MAX_PROPOSAL = 75;      // --weekly: highest plan usage (%) at which each phase may start
 const stamp = new Date().toISOString().slice(0, 16).replace(":", "-");
 const id = `amelioration-${stamp}`;
 const git = (...a) => execFileSync("git", ["-C", CLONE, ...a], { encoding: "utf8" }).trim();
@@ -41,6 +45,74 @@ if (process.argv[2] === "--apply-repo") {
   process.exit(0);
 }
 
+const cfg = JSON.parse(readFileSync(join(STATE, "openclaw.json"), "utf8"));
+const weekly = process.argv.includes("--weekly");
+if (weekly && existsSync(RECORDS) && readdirSync(RECORDS).some((f) => f.endsWith(".json") && JSON.parse(readFileSync(join(RECORDS, f), "utf8")).status === "en attente")) {
+  say("une amélioration attend déjà la décision de l'utilisateur : rien de lancé");
+  process.exit(0);
+}
+
+// ───────────── gateway helper: one message, the final answer ─────────────
+let gateway;
+const pending = new Map();
+try {
+  await Promise.race([
+    new Promise((resolve, reject) => {
+      gateway = new GatewayClient({
+        url: `ws://127.0.0.1:${cfg.gateway.port}`, token: cfg.gateway.auth.token, minProtocol: PROTOCOL_VERSION, maxProtocol: PROTOCOL_VERSION,
+        caps: ["approvals", "exec-approvals"],
+        onHelloOk: resolve, onConnectError: reject,
+        onEvent: (ev) => {
+          const p = ev.payload ?? {};
+          if (/^(plugin|exec)\.approval\.requested$/.test(ev.event ?? "")) {   // nothing here may act outside: refuse
+            gateway.request(ev.event.startsWith("plugin.") ? "plugin.approval.resolve" : "exec.approval.resolve", { id: p.id, decision: "deny" }).catch(() => {});
+            return;
+          }
+          const rec = pending.get(p.sessionKey);
+          if (!rec) return;
+          rec.last = Date.now();
+          if (ev.event === "chat" && p.state === "final") {
+            rec.finals++;
+            rec.text += (p.message?.content ?? []).filter((c) => c.type === "text").map((c) => c.text).join("");
+          }
+        },
+      });
+      gateway.start();
+    }),
+    new Promise((_, reject) => setTimeout(() => reject(new Error("délai de connexion")), 30000)),
+  ]);
+} catch (e) {
+  say(`gateway injoignable (${e?.message}) : Jarvis est-il arrêté ? Rien de lancé`);
+  process.exit(weekly ? 0 : 1);
+}
+async function ask(agent, message, timeoutS = 300) {
+  const key = `agent:${agent}:improve-${stamp}`.toLowerCase();
+  const rec = { finals: 0, text: "", last: Date.now() };
+  pending.set(key, rec);
+  await gateway.request("chat.send", { sessionKey: key, message, idempotencyKey: `improve-${randomUUID()}` }, { timeoutMs: 60000 });
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeoutS * 1000 && !(rec.finals && Date.now() - rec.last > 8000)) await new Promise((r) => setTimeout(r, 1000));
+  pending.delete(key);
+  return rec.text;
+}
+/** Highest usage (%) among the plan windows of Michel's primary provider, as the gateway reports it. */
+async function quotaUsed() {
+  const usage = await gateway.request("usage.status", {}, { timeoutMs: 20000 });
+  const provider = String(cfg.agents?.entries?.main?.model?.primary ?? "").split("/")[0];
+  return Math.max(0, ...((usage?.providers ?? []).find((p) => p.provider === provider)?.windows ?? []).map((w) => w.usedPercent ?? 0));
+}
+async function quotaAllows(max, what) {
+  const used = await quotaUsed();
+  if (used <= max) return true;
+  say(`quota à ${used} % (au-dessus de ${max} %) : ${what} reportée à la semaine prochaine`);
+  return false;
+}
+if (weekly) {
+  if (!(await quotaAllows(QUOTA_MAX_EVAL, "évaluation"))) process.exit(0);
+  say("évaluation complète (nouvelle référence)");
+  execFileSync(process.execPath, [join(HERE, "run.mjs")], { encoding: "utf8", maxBuffer: 1 << 24 });
+}
+
 // ───────────── 1. report ─────────────
 const evals = join(APP, "docs/evals");
 const refFile = readdirSync(evals).filter((f) => /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}\.json$/.test(f)).sort().at(-1);
@@ -53,7 +125,6 @@ const week = Date.now() - 7 * 86400000;
 const traces = existsSync(traceDir) ? readdirSync(traceDir).filter((f) => f.endsWith(".jsonl")).flatMap((f) =>
   readFileSync(join(traceDir, f), "utf8").split("\n").filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }))
   .filter((t) => t && Date.parse(t.ts) >= week) : [];
-const cfg = JSON.parse(readFileSync(join(STATE, "openclaw.json"), "utf8"));
 const primary = (agent) => cfg.agents?.entries?.[agent]?.model?.primary;
 const ms = traces.map((t) => t.ms).sort((a, b) => a - b);
 const stats = {
@@ -73,42 +144,7 @@ const report = [
 writeFileSync(join(evals, `rapport-${stamp}.md`), report);
 say(`rapport : docs/evals/rapport-${stamp}.md (${failures.length} échec(s))`);
 if (!failures.length) { say("rien à améliorer"); process.exit(0); }
-
-// ───────────── gateway helper: one message, the final answer ─────────────
-let gateway;
-const pending = new Map();
-await new Promise((resolve, reject) => {
-  gateway = new GatewayClient({
-    url: `ws://127.0.0.1:${cfg.gateway.port}`, token: cfg.gateway.auth.token, minProtocol: PROTOCOL_VERSION, maxProtocol: PROTOCOL_VERSION,
-    caps: ["approvals", "exec-approvals"],
-    onHelloOk: resolve, onConnectError: reject,
-    onEvent: (ev) => {
-      const p = ev.payload ?? {};
-      if (/^(plugin|exec)\.approval\.requested$/.test(ev.event ?? "")) {   // nothing here may act outside: refuse
-        gateway.request(ev.event.startsWith("plugin.") ? "plugin.approval.resolve" : "exec.approval.resolve", { id: p.id, decision: "deny" }).catch(() => {});
-        return;
-      }
-      const rec = pending.get(p.sessionKey);
-      if (!rec) return;
-      rec.last = Date.now();
-      if (ev.event === "chat" && p.state === "final") {
-        rec.finals++;
-        rec.text += (p.message?.content ?? []).filter((c) => c.type === "text").map((c) => c.text).join("");
-      }
-    },
-  });
-  gateway.start();
-});
-async function ask(agent, message, timeoutS = 300) {
-  const key = `agent:${agent}:improve-${stamp}`.toLowerCase();
-  const rec = { finals: 0, text: "", last: Date.now() };
-  pending.set(key, rec);
-  await gateway.request("chat.send", { sessionKey: key, message, idempotencyKey: `improve-${randomUUID()}` }, { timeoutMs: 60000 });
-  const t0 = Date.now();
-  while (Date.now() - t0 < timeoutS * 1000 && !(rec.finals && Date.now() - rec.last > 8000)) await new Promise((r) => setTimeout(r, 1000));
-  pending.delete(key);
-  return rec.text;
-}
+if (weekly && !(await quotaAllows(QUOTA_MAX_PROPOSAL, "proposition"))) process.exit(0);
 
 // ───────────── 2. proposal (Michel Organise) ─────────────
 const failureText = failures.map((f) => {

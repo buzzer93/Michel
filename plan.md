@@ -252,6 +252,11 @@ Première version volontairement étroite : seules les consignes de Michel (`age
 - ~~8.1 Observation : un rapport hebdomadaire des échecs, tiré des traces et des évaluations.~~
   Fait : `docs/evals/rapport-<date>.md` — échecs de la dernière évaluation de référence et résumé des traces des 7
   derniers jours (nombre, durées, modèle de secours, actions refusées ; jamais le texte des demandes).
+  Hebdomadaire : `jarvis-improve.timer`, le mardi vers 22 h (après la remise à zéro du quota de la semaine), lance
+  `improve.mjs --weekly` : rien si une proposition attend déjà l'utilisateur, si le quota dépasse 50 % (75 % avant la
+  proposition) ou si Jarvis est arrêté ; sinon évaluation complète (nouvelle référence, pour ne pas « corriger » un
+  échec déjà réglé), puis une proposition seulement s'il reste un échec. Les trois garde-fous testés le 2026-10-02.
+  Limite : les propositions ne viennent que des cas d'évaluation, pas encore des ratés réels vus dans les traces.
 - ~~8.2 Proposition : Michel Organise analyse le rapport et propose des corrections précises (consigne, outil, réglage).~~
   Fait : une seule correction par passe, sous forme « remplacer ce texte exact par celui-ci », vérifiée contre la
   version commitée du fichier.
