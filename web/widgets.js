@@ -149,6 +149,40 @@ export class MemoryPanel {
   }
 }
 
+/** Improvement loop (plan step 8): the latest candidate change of Michel's instructions, its reason, its diff and its
+ * score before/after on the evaluation cases. The user applies or refuses it, and can undo an applied one. */
+export class ImprovePanel {
+  constructor(root, onDecide) {
+    this.root = root; this.onDecide = onDecide;
+    root.innerHTML = panelHead("Amélioration", "") + `<div class="imp-body"></div>`;
+    [this.aux, this.body] = [".aux", ".imp-body"].map((s) => root.querySelector(s));
+    this.body.addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-action]"); if (!b) return;
+      b.closest(".imp").classList.add("deciding");
+      this.onDecide(b.dataset.id, b.dataset.action);
+    });
+  }
+
+  update({ list = [] }) {
+    const r = list.find((x) => x.status === "en attente") ?? list[0];
+    this.root.hidden = !r;
+    if (!r) return;
+    this.aux.textContent = r.status;
+    const score = (s) => (s ? `${s.passed}/${s.total}` : "–");
+    const lines = String(r.diff ?? "").split("\n").filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---)/.test(l))
+      .map((l) => `<span class="${l[0] === "+" ? "add" : "del"}">${esc(l)}</span>`).join("\n");
+    const buttons = r.status === "en attente"
+      ? `<button data-id="${esc(r.id)}" data-action="apply" class="ok">Appliquer</button><button data-id="${esc(r.id)}" data-action="refuse">Refuser</button>`
+      : r.status === "appliquée" ? `<button data-id="${esc(r.id)}" data-action="rollback">Annuler</button>` : "";
+    this.body.innerHTML = `<div class="imp${r.recommended ? " rec" : ""}">
+      <p class="why">${esc(r.why)}</p>
+      <p class="score">Michel <b>${score(r.before)}</b> → candidat <b>${score(r.after)}</b>${r.regressions?.length ? ` · <span class="reg">régressions : ${esc(r.regressions.join(", "))}</span>` : ""}</p>
+      <small>${r.recommended ? "recommandée" : "non recommandée"} · échecs visés : ${esc((r.failures ?? []).join(", ") || "aucun")}</small>
+      <details><summary>Modification de ${esc(r.file ?? "AGENTS.md")}</summary><pre class="diff">${lines || "(aucune)"}</pre></details>
+      <div class="imp-actions">${buttons}</div></div>`;
+  }
+}
+
 /** Model behind the active agent and its provider's plan usage (quota windows), as reported by the gateway. */
 export class ModelPanel {
   constructor(root) {

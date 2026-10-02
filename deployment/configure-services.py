@@ -121,6 +121,13 @@ team_entries = {
                **({'sandbox': sandbox_of(agent_id)} if sandbox_of(agent_id) else {})}
     for agent_id, spec in team.items()
 }
+# Improvement loop (plan step 8): a hidden copy of Michel, same model, tools and delegation, in its own workspace.
+# server/evals/improve.mjs writes a candidate's instructions there and replays the evaluation on it before the user
+# decides; the live Michel is never used for that. Not in the voice roster, nobody delegates to it.
+CANDIDATE = 'main_candidate'
+candidate_ws = state / '.openclaw/workspace-candidate'
+candidate_entry = {**team_entries['main'], 'name': 'Michel (candidat)', 'identity': {'name': 'Michel (candidat)', 'emoji': '◈'},
+                   'workspace': str(candidate_ws)}
 
 # argPattern is a JS regex over the arguments (argv[0] excluded) joined by single spaces. Anything that
 # does not match is an approval miss; with no approval UI in Michel, askFallback turns it into a denial.
@@ -170,7 +177,7 @@ config = {
                                 # OpenClaw's own runtime, never an external harness.
                                 **{model: {'agentRuntime': {'id': 'claude-cli' if model.startswith('anthropic/') else 'openclaw'}}
                                    for model in {claude_model, *(spec['model'] for spec in team.values())}}}},
-        'entries': {**team_entries, **tool_entries}
+        'entries': {**team_entries, **tool_entries, CANDIDATE: candidate_entry}
     },
     # Code Mode (the model scripts its tools in JavaScript) would otherwise switch on by itself for some models;
     # its default executor is documented as "not a security boundary", so agents get their tools directly.
@@ -256,8 +263,12 @@ for agent_id, spec in team.items():
     extra = f'\n# Available agents (generated from agents/*/agent.json)\n\n{roster}\n' if spec['role'] == 'coordinator' else f'\n{contract}'
     owned_write(workspace_of(agent_id) / 'AGENTS.md', program + extra)
     owned_write(workspace_of(agent_id) / 'SOUL.md', (team_dir / agent_id / 'SOUL.md').read_text())
+# The candidate starts as a copy of Michel; afterwards only the improvement script changes it.
+for name in ['AGENTS.md', 'SOUL.md', 'IDENTITY.md', 'USER.md', 'MEMORY.md']:
+    if not (candidate_ws / name).exists() and (workspace_of('main') / name).exists():
+        owned_write(candidate_ws / name, (workspace_of('main') / name).read_text())
 tool_workspaces = [state / f'.openclaw/workspace-{agent_id}' for agent_id in tool_agents]
-for directory in [state / '.openclaw', workspace, *tool_workspaces, *map(workspace_of, team), app / 'vendor/supertonic3', state / 'ollama/models', state / 'secrets']:
+for directory in [state / '.openclaw', workspace, *tool_workspaces, *map(workspace_of, team), candidate_ws, app / 'vendor/supertonic3', state / 'ollama/models', state / 'secrets']:
     directory.mkdir(parents=True, exist_ok=True)
     os.chown(directory, account.pw_uid, account.pw_gid)
     directory.chmod(0o700)
@@ -293,7 +304,20 @@ for agent_id, spec in team.items():
         target = workspace_of(agent_id) / f'{spec["reviews"]}-work'
         target.mkdir(parents=True, exist_ok=True)
         bind_mounts.append(f'BindReadOnlyPaths=-{workspace_of(spec["reviews"]) / "project"}:{target}')
-subprocess.run(['chown', '-R', 'jarvis:jarvis', *[str(workspace_of(agent_id)) for agent_id in team]], check=True)
+# The candidate sees the same read-only project view as Michel, and its instructions are read-only for the gateway.
+for name in project_paths:
+    source, target = app / name, candidate_ws / 'project' / name
+    if not source.exists():
+        continue
+    if source.is_dir():
+        target.mkdir(parents=True, exist_ok=True)
+    else:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.touch(exist_ok=True)
+    bind_mounts.append(f'BindReadOnlyPaths={source}:{target}')
+for name in ['SOUL.md', 'AGENTS.md', 'IDENTITY.md', 'USER.md', 'MEMORY.md']:
+    bind_mounts.append(f'BindReadOnlyPaths={candidate_ws / name}')
+subprocess.run(['chown', '-R', 'jarvis:jarvis', *[str(workspace_of(agent_id)) for agent_id in team], str(candidate_ws)], check=True)
 
 hardening = '''
 User=jarvis

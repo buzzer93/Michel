@@ -134,6 +134,25 @@ body[data-state="sleep"] .pill.now i, body[data-state="offline"] .pill.now i { b
 .notes ul { margin: 4px 0 0; padding-left: 18px; font-size: 12px; }
 .notes li.done { text-decoration: line-through; opacity: .55; }
 .notes .empty { margin: 0; font-size: 11px; color: var(--dim); }
+/* improvement panel: a candidate change of Michel's instructions, waiting for the user (plan step 8) */
+#improve[hidden] { display: none; }
+.imp-body { padding: 8px 12px 12px; max-height: 34vh; overflow: auto; scrollbar-width: thin; }
+.imp { display: grid; gap: 6px; }
+.imp.deciding { opacity: .4; }
+.imp .why { margin: 0; font-size: 12px; color: var(--ink); }
+.imp .score { margin: 0; font-size: 12px; color: var(--dim); }
+.imp .score b { color: var(--ink); }
+.imp.rec .score b:last-of-type { color: #34d399; }
+.imp .reg { color: #fb7185; }
+.imp small { font-size: 10px; color: var(--dim); }
+.imp summary { cursor: pointer; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.imp .diff { margin: 4px 0 0; padding: 6px 8px; border-radius: 8px; background: rgba(0, 0, 0, .35); font-size: 10.5px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.imp .diff .add { color: #34d399; }
+.imp .diff .del { color: #fb7185; }
+.imp-actions { display: flex; gap: 8px; }
+.imp-actions button { flex: 1; padding: 6px 10px; border: 0; border-radius: 999px; cursor: pointer; font-size: 12px; background: rgba(255, 255, 255, .08); color: var(--ink); }
+.imp-actions button.ok:hover { background: #34d399; color: #06281c; }
+.imp-actions button:not(.ok):hover { background: #fb7185; color: #2a0710; }
 /* approval cards: an agent asks to run an exact command */
 #approvals { position: fixed; top: 72px; left: 50%; transform: translateX(-50%); z-index: 30; display: grid; gap: 10px; width: min(560px, calc(100vw - 32px)); pointer-events: none; }
 .approval { pointer-events: auto; position: relative; overflow: hidden; padding: 14px 16px 12px; border-radius: 16px; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);

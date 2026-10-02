@@ -1,6 +1,7 @@
 // Agent evaluation (plan step 4): replays evals/cases.json and writes a dated report to docs/evals/.
 // Run on the host, as the service account (it reads the gateway token):
 //   runuser -u jarvis -- env HOME=/var/lib/jarvis /opt/jarvis-node/bin/node /opt/jarvis/server/evals/run.mjs [--only R01,M03] [--skip-agents]
+//     [--agent-map main=main_candidate] [--label candidat]   (improvement loop: replay Michel's cases on the candidate)
 // Each agent case runs in its own test session (agent:<id>:eval-<stamp>-<case>), so the voice conversations are not
 // touched; every approval request is refused, so no case can send a mail or restart a container.
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
@@ -20,9 +21,13 @@ const APP = join(HERE, "../..");
 const args = process.argv.slice(2);
 const only = args.includes("--only") ? new Set(args[args.indexOf("--only") + 1].split(",")) : null;
 const skipAgents = args.includes("--skip-agents");
+const optionValue = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
+const agentMap = Object.fromEntries((optionValue("--agent-map") ?? "").split(",").filter(Boolean).map((pair) => pair.split("=")));
+const label = (optionValue("--label") ?? "").replace(/[^\w-]/g, "");
 const { cases } = JSON.parse(readFileSync(join(HERE, "cases.json"), "utf8"));
 const selected = cases.filter((c) => !only || only.has(c.id));
 const stamp = new Date().toISOString().slice(0, 16).replace(":", "-");
+const reportName = label ? `${stamp}-${label}` : stamp;
 const QUIET_MS = 8000;
 
 const sha = (file) => (existsSync(file) ? createHash("sha256").update(readFileSync(file)).digest("hex") : null);
@@ -85,10 +90,13 @@ function onEvent(ev) {
 }
 
 async function runAgent(c) {
-  const sessionKey = `agent:${c.agent}:eval-${stamp}-${c.id}`.toLowerCase();
+  const agent = agentMap[c.agent] ?? c.agent;
+  const sessionKey = `agent:${agent}:eval-${stamp}-${c.id}`.toLowerCase();
   const rec = { delegations: [], approvals: [], finals: 0, answer: "", lastEventAt: Date.now() };
   sessions.set(sessionKey, rec);
-  const before = c.expect.fileUnchanged ? sha(c.expect.fileUnchanged) : null;
+  // On the candidate, the file to watch is its own copy (workspace-candidate instead of workspace).
+  const watched = c.expect.fileUnchanged && agent !== c.agent ? c.expect.fileUnchanged.replace("/.openclaw/workspace/", "/.openclaw/workspace-candidate/") : c.expect.fileUnchanged;
+  const before = watched ? sha(watched) : null;
   const t0 = Date.now(), timeout = (c.timeoutS ?? 200) * 1000;
   try {
     await gateway.request("chat.send", { sessionKey, message: `${voiceBrief("", false)}\n\n${c.text}`, idempotencyKey: `eval-${randomUUID()}` }, { timeoutMs: 60000 });
@@ -122,7 +130,7 @@ async function runAgent(c) {
   if (e.approval === "requested" && !rec.approvals.length) fails.push("aucune demande d'approbation");
   if (e.approvalMatches && rec.approvals.length && !rec.approvals.some((a) => re(e.approvalMatches).test(a))) fails.push(`approbation sans /${e.approvalMatches}/`);
   if (e.maxApprovals && rec.approvals.length > e.maxApprovals) fails.push(`${rec.approvals.length} demandes d'approbation (relance)`);
-  if (e.fileUnchanged && sha(e.fileUnchanged) !== before) fails.push(`${e.fileUnchanged} modifié`);
+  if (watched && sha(watched) !== before) fails.push(`${watched} modifié`);
   return { fails, details: { s: Math.round(ms / 1000), model, tokens, delegations: rec.delegations, approvals: rec.approvals, answer: rec.answer.replace(/\s+/g, " ").slice(0, 240) } };
 }
 
@@ -147,15 +155,15 @@ const byCat = {};
 for (const r of results) { byCat[r.category] ??= { pass: 0, total: 0 }; byCat[r.category].total++; if (r.pass) byCat[r.category].pass++; }
 const outDir = join(APP, "docs/evals");
 mkdirSync(outDir, { recursive: true });
-writeFileSync(join(outDir, `${stamp}.json`), JSON.stringify({ stamp, passed, total: results.length, byCategory: byCat, results }, null, 2));
+writeFileSync(join(outDir, `${reportName}.json`), JSON.stringify({ stamp, label, agentMap, passed, total: results.length, byCategory: byCat, results }, null, 2));
 const md = [
-  `# Évaluation des agents — ${stamp.replace("T", " ")}`, "",
+  `# Évaluation des agents — ${stamp.replace("T", " ")}${label ? ` (${label})` : ""}`, "",
   `**${passed} / ${results.length} cas réussis.** Généré par \`server/evals/run.mjs\` à partir de \`server/evals/cases.json\`.`, "",
   "| Catégorie | Réussis |", "| --- | --- |", ...Object.entries(byCat).map(([k, v]) => `| ${k} | ${v.pass} / ${v.total} |`), "",
   "| Cas | Résultat | Durée | Délégations | Approbations | Détail |", "| --- | --- | --- | --- | --- | --- |",
   ...results.map((r) => `| ${r.id} | ${r.pass ? "✅" : "❌"} | ${r.s != null ? r.s + " s" : "—"} | ${(r.delegations ?? []).join(", ") || "—"} | ${(r.approvals ?? []).length || "—"} | ${(r.pass ? (r.type === "route" ? `${r.kind} ${r.agentId ?? ""}` : excerpt(r)) : r.fails.join(" ; ")).replace(/\|/g, "/")} |`),
   "",
 ].join("\n");
-writeFileSync(join(outDir, `${stamp}.md`), md);
-console.log(`\n${passed}/${results.length} — rapport : docs/evals/${stamp}.md`);
+writeFileSync(join(outDir, `${reportName}.md`), md);
+console.log(`\n${passed}/${results.length} — rapport : docs/evals/${reportName}.md`);
 process.exit(0);

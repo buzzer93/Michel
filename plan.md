@@ -240,22 +240,51 @@ quinze heures trois et trente secondes » → « C'est le moment de prendre une 
 la tâche s'est supprimée (« No automations »). Premier essai à 2 minutes : rappel exécuté à l'heure et écrit dans la
 conversation, mais pas dit (événement non écouté) → corrigé ci-dessus.
 
-## Étape 8 — Boucle d'amélioration (§4, §8, §12)
+## ~~Étape 8 — Boucle d'amélioration (§4, §8, §12)~~ ✅
 
 Le système s'améliore par ses **consignes, procédures et outils** (pas par réentraînement du modèle), et jamais
 automatiquement : chaque changement est mesuré par les évaluations et validé par l'utilisateur. Dépend des étapes
 4 (évaluations), 5 (propositions validées) et 6 (traces).
 
-- 8.1 Observation : un rapport hebdomadaire des échecs, tiré des traces et des évaluations.
-- 8.2 Proposition : Michel Organise analyse le rapport et propose des corrections précises (consigne, outil, réglage).
-- 8.3 Implémentation : Michel Construit applique une correction dans son clone (branche `agents/implementer`).
-- 8.4 Évaluation : le jeu de l'étape 4 est rejoué sur la branche ; la correction doit améliorer le cas visé sans
-  régression ailleurs.
-- 8.5 Validation : le dashboard présente le changement et le résultat des évaluations ; l'utilisateur fusionne ou refuse.
-- 8.6 Surveillance et retour arrière : version publiée suivie dans les traces ; annulation par git si dégradation.
+Une passe : `runuser -u jarvis -- env HOME=/var/lib/jarvis /opt/jarvis-node/bin/node /opt/jarvis/server/evals/improve.mjs`.
+Première version volontairement étroite : seules les consignes de Michel (`agents/main/AGENTS.md`) peuvent changer.
+
+- ~~8.1 Observation : un rapport hebdomadaire des échecs, tiré des traces et des évaluations.~~
+  Fait : `docs/evals/rapport-<date>.md` — échecs de la dernière évaluation de référence et résumé des traces des 7
+  derniers jours (nombre, durées, modèle de secours, actions refusées ; jamais le texte des demandes).
+- ~~8.2 Proposition : Michel Organise analyse le rapport et propose des corrections précises (consigne, outil, réglage).~~
+  Fait : une seule correction par passe, sous forme « remplacer ce texte exact par celui-ci », vérifiée contre la
+  version commitée du fichier.
+- ~~8.3 Implémentation : Michel Construit applique une correction dans son clone (branche `agents/implementer`).~~
+  Fait : branche `amelioration/<date>` partie de `origin/agentic-os` dans son clone, un commit ; le script vérifie
+  qu'un seul fichier a changé et que son contenu est exactement celui attendu.
+- ~~8.4 Évaluation : le jeu de l'étape 4 est rejoué sur la branche ; la correction doit améliorer le cas visé sans
+  régression ailleurs.~~
+  Fait : un **candidat** caché (`main_candidate` : même modèle, mêmes outils, même délégation, dossier
+  `workspace-candidate`, absent de la voix et de l'organigramme) reçoit les nouvelles consignes ; les cas en échec et
+  un jeu de non-régression (M01–M08, S02, S04) sont rejoués sur Michel puis sur le candidat
+  (`run.mjs --agent-map main=main_candidate --label …`). « Recommandée » = meilleur score et aucune régression.
+- ~~8.5 Validation : le dashboard présente le changement et le résultat des évaluations ; l'utilisateur fusionne ou refuse.~~
+  Fait : panneau « Amélioration » (raison, scores avant/après, régressions, différence) avec **Appliquer / Refuser**.
+  Appliquer réécrit sur place les consignes en service de Michel (liste des agents conservée) ; ensuite
+  `sudo env HOME=/var/lib/jarvis /opt/jarvis-node/bin/node /opt/jarvis/server/evals/improve.mjs --apply-repo <id>`
+  reporte la correction dans le dépôt, à relire et commiter (sinon le prochain déploiement l'écraserait).
+- ~~8.6 Surveillance et retour arrière : version publiée suivie dans les traces ; annulation par git si dégradation.~~
+  Fait : chaque trace de Michel porte `instructions` (amélioration appliquée, ou `base`) ; bouton **Annuler** qui
+  restaure les consignes précédentes à l'identique ; côté dépôt, retour arrière par `git revert`.
 
 **Fait quand** : un échec réel passe par tout le cycle (rapport → proposition → branche → évaluation → validation)
 et la correction fusionnée améliore le score sans régression.
+
+**Fait le 2026-10-02.** Échec réel M06 (Michel rédige le plan lui-même au lieu de le confier à Organise) → rapport
+`rapport-2026-10-02T13-15.md` → proposition d'Organise (une ligne de routage : « plan seul → planner seul ») →
+commit `fbd13e4` de Construit sur `amelioration/2026-10-02T13-15` → Michel 8/10, candidat 10/10, aucune régression →
+appliquée par l'utilisateur dans le dashboard à 15:33, reportée dans le dépôt. Lecture honnête : le gain réel est
+M06 ; l'échec de Michel sur M05 (commande `docker context show` soumise à autorisation) est sans lien avec la ligne
+ajoutée, c'est la variabilité du modèle — un score sur 10 cas joués une fois reste bruité. Chemin de décision testé à
+travers le vrai serveur sur une fiche factice : appliquer (fichier réécrit sur place, liste d'agents gardée) puis
+annuler (fichier identique à l'octet près). Non encore vérifié en conditions réelles : une conversation vocale déjà
+ouverte prend-elle les nouvelles consignes sans « Nouvelle conversation » ?
 
 ## Étape 9 — Clôture
 

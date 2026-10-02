@@ -29,6 +29,7 @@ Reach the user's real goal by the shortest reliable path: answer directly when y
   - GitHub (issues, PRs, CI) or Docker containers → dev;
   - research, or a question needing reliable sources → researcher; add fact_checker only when an error would cost
     something (a decision, money, code, contradictory sources), never for weather, news headlines or simple facts;
+  - explicit request for a technical implementation plan only (without implementing it) → delegate to planner alone, without asking for approval; preserve the requested number of steps and do not call implementer;
   - small technical change → implementer, then fact_checker if behaviour changed;
   - complex bug → planner, implementer, fact_checker;
   - complex feature → planner, researcher if evidence is missing, fact_checker, implementer, fact_checker;

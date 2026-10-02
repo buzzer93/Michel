@@ -7,14 +7,15 @@ import { join } from "node:path";
 const KEEP_DAYS = 30;
 
 /** Trace line of a finished request. `usage` is the last model/usage snapshot (see server refreshUsage). */
-export function traceRecord(run, { agentName, usage, now = Date.now() } = {}) {
+// `instructions`: which version of the agent's instructions answered (an applied improvement id, or "base"; plan step 8.6).
+export function traceRecord(run, { agentName, usage, instructions = null, now = Date.now() } = {}) {
   const m = usage?.models?.[run.agentId] ?? {};
   return {
     ts: new Date(now).toISOString(), runId: run.runId, agent: run.agentId, agentName: agentName ?? run.agentId,
     request: String(run.request ?? "").slice(0, 300),
     model: m.model ? `${m.provider}/${m.model}` : null, contextTokens: m.contextTokens ?? null,
     ms: now - run.startedAt, tools: run.toolNames ?? [], toolCount: run.toolCount ?? 0,
-    delegations: run.delegatedTo ?? [], approvals: run.approvals ?? [],
+    delegations: run.delegatedTo ?? [], approvals: run.approvals ?? [], instructions,
   };
 }
 

@@ -18,6 +18,7 @@ import { loadAgents, readTeamTaglines, delegationTargets, buildSttPrompt, assign
 import { SysSampler } from "./sysstats.mjs";
 import { approvalView, forbiddenReason, resolveMethod } from "./approvals.mjs";
 import { memoryStore } from "./memory.mjs";
+import { listImprovements, decideImprovement } from "./improvements.mjs";
 import { traceRecord, appendTrace, alertsFor, alertGate } from "./traces.mjs";
 
 const APP = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -547,7 +548,7 @@ function noteApproval(agentId, command, outcome) {
 }
 
 function writeTrace(run) {
-  try { appendTrace(TRACES_DIR, traceRecord(run, { agentName: agentName(run.agentId), usage: lastUsage })); }
+  try { appendTrace(TRACES_DIR, traceRecord(run, { agentName: agentName(run.agentId), usage: lastUsage, instructions: run.agentId === "main" ? instructionsVersion : null })); }
   catch (e) { log("trace :", e?.message); }
 }
 
@@ -564,8 +565,24 @@ function broadcastMemory(force = false) {
   } catch (e) { log("mémoire :", e?.message); }
 }
 
+// Improvement loop (plan step 8, see improvements.mjs and evals/improve.mjs): a candidate change of Michel's
+// instructions, measured before/after on the evaluation cases, waits here for the user's decision.
+const IMPROVE_DIR = join(homedir(), "improvements");
+const MAIN_AGENTS_FILE = join(ocCfg.agents?.entries?.main?.workspace ?? join(homedir(), ".openclaw/workspace"), "AGENTS.md");
+let improveKey = "", instructionsVersion = "base"; // improvement Michel's live instructions come from, in his traces
+function broadcastImprovements(force = false) {
+  try {
+    const all = listImprovements(IMPROVE_DIR, 50), list = all.slice(0, 3), key = JSON.stringify(list.map((r) => [r.id, r.status]));
+    instructionsVersion = all.find((r) => r.status === "appliquée")?.id ?? "base";
+    if (!force && key === improveKey) return;
+    improveKey = key;
+    broadcast({ t: "improvements", list });
+  } catch (e) { log("amélioration :", e?.message); }
+}
+
 async function refreshUsage() {
   broadcastMemory();
+  broadcastImprovements();
   if (!gatewayUp || !clients.size) return;
   try {
     const [usage, list] = await Promise.all([
@@ -655,6 +672,7 @@ function onBrowser(ws) {
   usageTimer ??= setInterval(refreshUsage, 60000);
   refreshUsage();
   try { ws.send(JSON.stringify({ t: "memory", ...memory.snapshot() })); } catch (e) { log("mémoire :", e?.message); }
+  try { ws.send(JSON.stringify({ t: "improvements", list: listImprovements(IMPROVE_DIR) })); } catch (e) { log("amélioration :", e?.message); }
   ws.on("message", async (data, isBinary) => {
     try {
       if (isBinary) {
@@ -676,6 +694,11 @@ function onBrowser(ws) {
         const p = memory.decide(msg.id, msg.accept === true);
         if (p) log(`mémoire : proposition ${msg.accept === true ? "validée" : "rejetée"} (${p.kind}) : ${p.text.slice(0, 160)}`);
         broadcastMemory(true);
+      }
+      else if (msg.t === "improvement.decide" && typeof msg.id === "string" && ["apply", "refuse", "rollback"].includes(msg.action)) {
+        const r = decideImprovement(IMPROVE_DIR, MAIN_AGENTS_FILE, msg.id, msg.action);
+        if (r) log(`amélioration ${r.id} : ${r.status}`);
+        broadcastImprovements(true);
       }
       else if (msg.t === "conversation.new" && agentState.has(msg.id)) await newConversation(client, msg.id);
       else if (msg.t === "history" && agentState.has(msg.id)) await sendHistory(client, msg.id);

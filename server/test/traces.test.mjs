@@ -13,8 +13,9 @@ const usage = {
 
 test("trace : une ligne par demande, modèle réellement utilisé", () => {
   const run = { runId: "r1", agentId: "main", startedAt: NOW - 4200, request: "quel temps fait-il ?", toolNames: ["sessions_spawn"], toolCount: 1, delegatedTo: ["researcher"] };
-  const t = traceRecord(run, { agentName: "Michel", usage, now: NOW });
-  assert.deepEqual([t.model, t.ms, t.delegations, t.tools, t.contextTokens], ["ollama/qwen3.5:4b", 4200, ["researcher"], ["sessions_spawn"], 900]);
+  const t = traceRecord(run, { agentName: "Michel", usage, instructions: "amelioration-2026-10-02T13-20", now: NOW });
+  assert.deepEqual([t.model, t.ms, t.delegations, t.tools, t.contextTokens, t.instructions],
+    ["ollama/qwen3.5:4b", 4200, ["researcher"], ["sessions_spawn"], 900, "amelioration-2026-10-02T13-20"]);
   const dir = mkdtempSync(join(tmpdir(), "jarvis-traces-"));
   try {
     writeFileSync(join(dir, "2026-08-01.jsonl"), "{}\n");          // older than 30 days: pruned
