@@ -149,22 +149,30 @@ export class MemoryPanel {
   }
 }
 
-/** Improvement loop (plan step 8): the latest candidate change of Michel's instructions, its reason, its diff and its
- * score before/after on the evaluation cases. The user applies or refuses it, and can undo an applied one. */
+/** Improvement loop (plan step 8): the candidate change of Michel's instructions waiting for the user, its reason, its
+ * diff and its score before/after on the evaluation cases. The panel is shown only while a decision is pending; after
+ * "Appliquer", "Annuler" stays available for UNDO_MS, then the panel empties. */
+const UNDO_MS = 30000;
 export class ImprovePanel {
   constructor(root, onDecide) {
-    this.root = root; this.onDecide = onDecide;
+    this.root = root; this.onDecide = onDecide; this.list = []; this.undo = null;
     root.innerHTML = panelHead("Amélioration", "") + `<div class="imp-body"></div>`;
     [this.aux, this.body] = [".aux", ".imp-body"].map((s) => root.querySelector(s));
     this.body.addEventListener("click", (e) => {
       const b = e.target.closest("button[data-action]"); if (!b) return;
       b.closest(".imp").classList.add("deciding");
+      if (b.dataset.action === "apply") {
+        this.undo = { id: b.dataset.id, until: Date.now() + UNDO_MS };
+        setTimeout(() => this.update({ list: this.list }), UNDO_MS + 100);
+      } else this.undo = null;
       this.onDecide(b.dataset.id, b.dataset.action);
     });
   }
 
   update({ list = [] }) {
-    const r = list.find((x) => x.status === "en attente") ?? list[0];
+    this.list = list;
+    const undoable = this.undo && Date.now() < this.undo.until ? list.find((x) => x.id === this.undo.id && x.status === "appliquée") : null;
+    const r = list.find((x) => x.status === "en attente") ?? undoable;
     this.root.hidden = !r;
     if (!r) return;
     this.aux.textContent = r.status;
@@ -173,7 +181,7 @@ export class ImprovePanel {
       .map((l) => `<span class="${l[0] === "+" ? "add" : "del"}">${esc(l)}</span>`).join("\n");
     const buttons = r.status === "en attente"
       ? `<button data-id="${esc(r.id)}" data-action="apply" class="ok">Appliquer</button><button data-id="${esc(r.id)}" data-action="refuse">Refuser</button>`
-      : r.status === "appliquée" ? `<button data-id="${esc(r.id)}" data-action="rollback">Annuler</button>` : "";
+      : r.status === "appliquée" ? `<button data-id="${esc(r.id)}" data-action="rollback">Annuler (30 s)</button>` : "";
     this.body.innerHTML = `<div class="imp${r.recommended ? " rec" : ""}">
       <p class="why">${esc(r.why)}</p>
       <p class="score">Michel <b>${score(r.before)}</b> → candidat <b>${score(r.after)}</b>${r.regressions?.length ? ` · <span class="reg">régressions : ${esc(r.regressions.join(", "))}</span>` : ""}</p>
