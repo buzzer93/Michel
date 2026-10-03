@@ -292,7 +292,7 @@ travers le vrai serveur sur une fiche factice : appliquer (fichier réécrit sur
 annuler (fichier identique à l'octet près). Non encore vérifié en conditions réelles : une conversation vocale déjà
 ouverte prend-elle les nouvelles consignes sans « Nouvelle conversation » ?
 
-## Étape 9 — Clôture
+## ~~Étape 9 — Clôture~~ ✅
 
 - ~~9.1 Guide utilisateur (`Guide-Michel.md`) et documentation à jour.~~
   Fait : `Guide-Michel.md` réécrit (push-to-talk, raccourcis, équipe et modèles, autorisations, mémoire, rappels,
@@ -313,10 +313,15 @@ ouverte prend-elle les nouvelles consignes sans « Nouvelle conversation » ?
   le fichier de réglages de l'agent (`agents/<id>/agent/settings.json`, `retry.provider.maxRetries: 2`, écrit par le
   déploiement pour Michel et son candidat ; les limites de débit gardent leur propre budget) → **Qwen répond hors
   ligne en 11 à 15 s**, chargement du modèle compris.
-- Vérification manuelle « push-to-talk sans parler » : à faire par l'utilisateur.
-- 9.3 Commit final.
+- Vérification manuelle « push-to-talk sans parler » : faite par l'utilisateur le 2026-10-03, bouton maintenu en
+  silence → rien n'est écrit ni envoyé.
+- ~~9.3 Commit final.~~ Fait : ce commit (branche `agentic-os`). Les travaux non commités de la session parallèle
+  (étape V, voix) et le dossier `dossier_agentic_os/` restent hors de ce commit, à la décision de l'utilisateur.
 
 **Fait quand** : documentation à jour, évaluations au moins aussi bonnes que la référence, commit fait.
+
+**Fait le 2026-10-03.** Documentation à jour ; évaluation 40 / 40 contre 39 / 40 ; bascule hors ligne corrigée et
+vérifiée ; push-to-talk sans parole vérifié. **Phase 1 (étapes 0 à 9) terminée** ; suite : phase 2 ci-dessous.
 
 ---
 
