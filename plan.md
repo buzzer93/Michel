@@ -252,7 +252,8 @@ Première version volontairement étroite : seules les consignes de Michel (`age
 - ~~8.1 Observation : un rapport hebdomadaire des échecs, tiré des traces et des évaluations.~~
   Fait : `docs/evals/rapport-<date>.md` — échecs de la dernière évaluation de référence et résumé des traces des 7
   derniers jours (nombre, durées, modèle de secours, actions refusées ; jamais le texte des demandes).
-  Hebdomadaire : `jarvis-improve.timer`, le mardi vers 22 h (après la remise à zéro du quota de la semaine), lance
+  Hebdomadaire : `jarvis-improve.timer`, le samedi vers 6 h (après la remise à zéro du quota de la semaine, samedi 5 h ;
+  sautée si le PC est éteint : une évaluation complète vide la fenêtre de 5 h), lance
   `improve.mjs --weekly` : rien si une proposition attend déjà l'utilisateur, si le quota dépasse 50 % (75 % avant la
   proposition) ou si Jarvis est arrêté ; sinon évaluation complète (nouvelle référence, pour ne pas « corriger » un
   échec déjà réglé), puis une proposition seulement s'il reste un échec. Les trois garde-fous testés le 2026-10-02.
@@ -308,7 +309,10 @@ ouverte prend-elle les nouvelles consignes sans « Nouvelle conversation » ?
   sur 90 s), puis Claude Code réessayait sans fin et Qwen n'était jamais atteint. Corrigé :
   `CLAUDE_CODE_MAX_RETRIES=2` pour le gateway (Claude abandonne en 3 s) → Qwen répond, **en 103 s**. La mention
   technique « ↪️ Model Fallback: … » ajoutée par OpenClaw n'est plus ni dite ni affichée (le panneau Modèle et
-  l'alerte le disent déjà). Limite restante : les 85 s d'OpenAI (réglage interne à OpenClaw, non modifié).
+  l'alerte le disent déjà). Côté OpenAI, demande de l'utilisateur (« 3 s comme Claude ») : le budget se règle dans
+  le fichier de réglages de l'agent (`agents/<id>/agent/settings.json`, `retry.provider.maxRetries: 2`, écrit par le
+  déploiement pour Michel et son candidat ; les limites de débit gardent leur propre budget) → **Qwen répond hors
+  ligne en 11 à 15 s**, chargement du modèle compris.
 - Vérification manuelle « push-to-talk sans parler » : à faire par l'utilisateur.
 - 9.3 Commit final.
 
@@ -325,6 +329,12 @@ propose, on en discute ensemble, on mesure, et rien ne change sans la validation
 
 Constat de départ (étape 8) : la boucle actuelle ne repose que sur les 40 cas de test écrits à l'étape 4 ; elle
 rend Michel conforme à ces attentes, pas forcément à l'usage réel, et ne touche que les consignes de Michel.
+
+Constats sur le quota (étape 9, 2026-10-03) : une évaluation complète vide à elle seule la fenêtre de 5 h de
+l'abonnement ChatGPT Plus (0 → 100 %, et 16 % de la semaine) ; le quota renvoyé par le gateway est **en retard**
+(0 % affiché plus de 15 min après l'évaluation) ; le quota Anthropic (Écrit, Compile, secours de Michel) n'est pas
+remonté du tout. À traiter en tête de phase 2 : marquer « non valide » un cas d'évaluation joué sur un modèle de
+secours ; ne pas décider d'un garde-fou sur une valeur périmée (âge de `updatedAt`) ; suivre le quota Anthropic.
 
 ### Étape 10 — Tri des cas d'usage et relecture des attentes
 

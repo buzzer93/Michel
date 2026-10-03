@@ -263,6 +263,18 @@ for agent_id, spec in team.items():
     extra = f'\n# Available agents (generated from agents/*/agent.json)\n\n{roster}\n' if spec['role'] == 'coordinator' else f'\n{contract}'
     owned_write(workspace_of(agent_id) / 'AGENTS.md', program + extra)
     owned_write(workspace_of(agent_id) / 'SOUL.md', (team_dir / agent_id / 'SOUL.md').read_text())
+# Michel has fallback models: without network, OpenClaw's default recovery (8 retries over ~90 s) delayed the local
+# Qwen by 85 s; two retries (a few seconds) still absorb a passing error. Rate limits keep their own budget. Agents
+# without fallback keep the default. Merged into the embedded runtime's per-agent settings file.
+for agent_id in ['main', CANDIDATE]:
+    settings_file = state / f'.openclaw/agents/{agent_id}/agent/settings.json'
+    for folder in [settings_file.parent.parent, settings_file.parent]:   # created for jarvis, never left to root
+        if not folder.exists():
+            folder.mkdir(mode=0o700)
+            os.chown(folder, account.pw_uid, account.pw_gid)
+    current = json.loads(settings_file.read_text()) if settings_file.exists() else {}
+    current.setdefault('retry', {}).setdefault('provider', {})['maxRetries'] = 2
+    owned_write(settings_file, json.dumps(current))
 # The candidate starts as a copy of Michel; afterwards only the improvement script changes it.
 for name in ['AGENTS.md', 'SOUL.md', 'IDENTITY.md', 'USER.md', 'MEMORY.md']:
     if not (candidate_ws / name).exists() and (workspace_of('main') / name).exists():
@@ -388,7 +400,9 @@ RestartSec=5
 WantedBy=multi-user.target
 '''
 (unit_dir / 'openclaw-gateway.service').write_text(gateway_unit)
-# Weekly improvement loop (plan step 8): Tuesday evening, after the plan's weekly quota reset. The script itself gives
+# Weekly improvement loop (plan step 8): Saturday 06:00, after the plan's weekly quota reset (Saturday 05:00). A full
+# evaluation empties the 5 h window: no catch-up at boot (Persistent=false), a missed week is skipped rather than run
+# while the user works. The script itself gives
 # up while a proposal still waits for the user, when the quota is already high, or when Jarvis is stopped (it never
 # starts the gateway). Nothing it finds is applied without the user's click in the dashboard.
 (unit_dir / 'jarvis-improve.service').write_text('''[Unit]
@@ -410,9 +424,9 @@ NoNewPrivileges=true
 Description=Michel - boucle d'amelioration hebdomadaire
 
 [Timer]
-OnCalendar=Tue *-*-* 22:00:00
+OnCalendar=Sat *-*-* 06:00:00
 RandomizedDelaySec=10min
-Persistent=true
+Persistent=false
 
 [Install]
 WantedBy=timers.target

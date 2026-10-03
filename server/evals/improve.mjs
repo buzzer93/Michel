@@ -7,7 +7,7 @@
 // 4. The hidden candidate (main_candidate) receives the changed instructions; the failed cases and a regression set are
 //    replayed on Michel and on the candidate.
 // 5. The record waits in /var/lib/jarvis/improvements/ for the user's decision in the dashboard (nothing is applied here).
-// Weekly (systemd jarvis-improve.timer, Tuesday evening after the weekly quota reset): --weekly does nothing while a
+// Weekly (systemd jarvis-improve.timer, Saturday 06:00 after the weekly quota reset): --weekly does nothing while a
 // record still waits for the user or when the plan quota is already high, and starts with a full evaluation so that
 // the report rests on a fresh reference (not on failures already fixed).
 // Afterwards, to make an applied change durable in the repository (the records are only readable by jarvis and root;
