@@ -2,11 +2,11 @@
 
 ## Utilisation
 
-1. Ouvrir le lanceur Windows **MICHEL-demarrer.cmd** (par exemple depuis PowerShell : `& 'F:\PARA\01_Projets\code\perso\openclaw-vocal-assistants\MICHEL-demarrer.cmd'`) puis attendre l'ouverture du navigateur.
+1. Double-cliquer sur le raccourci **Michel** (Bureau ou menu Démarrer) : Michel démarre s'il le faut, sans fenêtre, et son interface s'ouvre dans le navigateur dès qu'elle est prête (voir `LANCEUR-WINDOWS.md`).
 2. Cliquer sur **ACTIVER** et autoriser le microphone pour `http://localhost:8480`.
 3. **Push-to-talk** : maintenir le bouton latéral « suivant » de la souris pendant que tu parles, relâcher pour envoyer. Le micro mains libres est coupé par défaut ; touche `M` ou bouton micro pour l'activer (le choix est retenu).
 4. Parler à Michel : « Michel, dis-moi bonjour ». Il répond lui-même ou confie la demande au bon Michel ; tu peux aussi appeler directement un Michel par son nom (« Michel Explore, … »).
-5. Fermer la page coupe son microphone. **MICHEL-arreter.cmd** arrête les services et libère leur mémoire GPU.
+5. Fermer la page coupe son microphone. L'icône d'alimentation de l'interface arrête les services et libère leur mémoire GPU.
 
 L'interface est accessible à <http://localhost:8480>. Un casque réduit les reprises de la voix de l'assistant par le micro.
 
