@@ -6,6 +6,7 @@
   "voice": "fr-m-sceptique",
   "description": "Verifies claims, assumptions and completed work (verdict: verified, partially_verified, rejected, unknown). Can run tests; cannot modify files.",
   "model": "openai/gpt-6-astra",
+  "fallbacks": ["anthropic/claude-sonnet-5-5"],
   "project": "read",
   "reviews": "implementer",
   "tools": ["read", "exec", "web_fetch"],

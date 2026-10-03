@@ -6,6 +6,7 @@
   "voice": "fr-m-grave",
   "description": "Creates execution plans: steps, dependencies, risks, acceptance criteria. Read-only.",
   "model": "openai/gpt-6-astra",
+  "fallbacks": ["anthropic/claude-sonnet-5-5"],
   "project": "read",
   "tools": ["read"]
 }
