@@ -374,6 +374,9 @@ Wants=jarvis-ollama.service
 [Service]
 ''' + hardening + '''
 SupplementaryGroups=docker
+# Without network, Claude Code (claude-cli: Écrit, Compile, Michel's second fallback) retried for minutes and Michel's
+# chain never reached the local Qwen (plan step 9, offline check). Two retries still absorb a passing overload.
+Environment=CLAUDE_CODE_MAX_RETRIES=2
 EnvironmentFile=-/var/lib/jarvis/secrets/agent-tools.env
 InaccessiblePaths=-/var/lib/jarvis/secrets
 ''' + '\n'.join(bind_mounts) + '''

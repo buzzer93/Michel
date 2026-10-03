@@ -300,7 +300,16 @@ ouverte prend-elle les nouvelles consignes sans « Nouvelle conversation » ?
   supprimé à la demande de l'utilisateur. `UTILISATION.md` reste le guide générique du projet (équipe d'exemple).
   Retour d'usage : le panneau « Amélioration » se vide une fois la décision prise (« Annuler » reste 30 s après
   « Appliquer »).
-- 9.2 Jeu d'évaluation repassé, comparé à la référence de l'étape 4.
+- ~~9.2 Jeu d'évaluation repassé, comparé à la référence de l'étape 4.~~
+  Fait le 2026-10-03 : **40 / 40** (`docs/evals/2026-10-03T13-03.md`) contre 39 / 40 pour la référence ; M06 passe
+  grâce à l'amélioration de l'étape 8. Rapport sans donnée privée (5 réponses masquées).
+- Vérification manuelle « bascule hors ligne » (Internet coupé au seul gateway par un drop-in systemd temporaire) :
+  premier essai **en échec**, aucune réponse en 4 min — OpenAI réessaie 85 s (budget fixe d'OpenClaw : 8 essais
+  sur 90 s), puis Claude Code réessayait sans fin et Qwen n'était jamais atteint. Corrigé :
+  `CLAUDE_CODE_MAX_RETRIES=2` pour le gateway (Claude abandonne en 3 s) → Qwen répond, **en 103 s**. La mention
+  technique « ↪️ Model Fallback: … » ajoutée par OpenClaw n'est plus ni dite ni affichée (le panneau Modèle et
+  l'alerte le disent déjà). Limite restante : les 85 s d'OpenAI (réglage interne à OpenClaw, non modifié).
+- Vérification manuelle « push-to-talk sans parler » : à faire par l'utilisateur.
 - 9.3 Commit final.
 
 **Fait quand** : documentation à jour, évaluations au moins aussi bonnes que la référence, commit fait.

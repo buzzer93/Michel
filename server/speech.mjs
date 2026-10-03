@@ -74,11 +74,16 @@ export function takeSentences(buf, flush = false) {
   return [out.filter((s) => /[\p{L}\p{N}]/u.test(s)), rest];
 }
 
+/** OpenClaw appends a runtime notice to a reply given by a fallback model ("↪️ Model Fallback: ollama/qwen3.5:4b
+ * (selected openai/…; timeout …)"). It is for operators: the dashboard's model panel and alert already say it. */
+export const stripRuntimeNotices = (t) => t.replace(/\s*(?:↪\uFE0F?\s*)?Model Fallback:[^\n]*/g, "");
+
 export class ReplyStream {
   constructor() { this.full = ""; this.spokenUpTo = 0; this.pending = ""; this.spoken = []; this.mode = "unknown"; }
 
   /** Feed the full accumulated text so far. Returns newly completed sentences to speak. */
   update(fullText, final = false) {
+    fullText = stripRuntimeNotices(fullText);
     this.full = fullText;
     const open = fullText.indexOf("<voix>");
     if (open === -1) {
