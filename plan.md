@@ -436,6 +436,28 @@ leurs commandes sont refusées en secours (Claude Code les lancerait hors Docker
 puis retiré (aucune demande pour Bash, seulement des demandes parasites pour les outils internes de Claude Code).
 Une clé API Anthropic lèverait ces limites (coût à l'usage).
 
+Index de recherche de la mémoire (constat du 2026-10-03 au soir, signalé par Michel dans une réponse :
+« configuration et index désynchronisés »). `openclaw memory status --agent main` (lecture seule) : « index scope
+changed (owner: configuration) », recherche par le sens (vectorielle) **en pause**, recherche par mots prête ; 5 fichiers
+indexés sur 81 (1 conversation sur 76). Cause probable, non prouvée : le renommage (chemins `/var/lib/jarvis` →
+`/var/lib/michel`). Sans effet sur la mémoire validée et les règles (`MEMORY.md`, `USER.md` chargés en entier à chaque
+conversation). Non reconstruit volontairement : `--index` enverrait les anciennes conversations (mails, agenda) à
+OpenAI pour les vectoriser, via la clé API sans crédit. Proposé : vecteurs calculés en local par Ollama (petit modèle
+d'embedding, gratuit, hors ligne, conversations qui ne quittent pas la machine), ce qui prépare aussi l'étape 11.
+Défaut au passage : Michel a affiché ce diagnostic technique dans sa réponse ; il devrait le garder pour lui.
+
+### Étape 9 bis — Fiabilité, en tête de la phase 2
+
+- 9b.1 Quota : ne pas décider sur une valeur périmée (âge de `updatedAt` ; au-delà de quelques minutes, quota
+  « inconnu » : la boucle ne se lance pas, l'affichage le signale) ; compter les réponses de Claude dans les traces et
+  l'afficher (le quota Claude Pro, partagé avec Claude Code, n'est pas remonté par OpenClaw).
+- 9b.2 Mémoire : recherche par le sens rétablie avec des vecteurs calculés en local (Ollama), index reconstruit,
+  `openclaw memory status` propre.
+- 9b.3 Michel ne montre plus de diagnostic technique interne dans ses réponses.
+
+**Fait quand** : garde-fous fondés sur un quota récent, compteur Claude visible, recherche par le sens active sans
+envoi des conversations à l'extérieur.
+
 ### Étape 10 — Tri des cas d'usage et relecture des attentes
 
 - 10.1 Relecture ensemble des 40 cas : garder, corriger ou supprimer ; chaque attente dit pourquoi elle est la bonne
