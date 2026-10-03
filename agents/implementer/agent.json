@@ -9,7 +9,7 @@
   "project": "clone",
   "tools": ["read", "write", "edit", "apply_patch", "exec"],
   "exec": [
-    { "pattern": "/opt/jarvis-node/bin/node", "argPattern": "^(?!.*\\.\\.)--test( project/[\\w./*-]+)+$" },
+    { "pattern": "/opt/michel-node/bin/node", "argPattern": "^(?!.*\\.\\.)--test( project/[\\w./*-]+)+$" },
     { "pattern": "/usr/bin/git", "argPattern": "^(?!.*\\.\\.)-C project (?!.*--output)(status|diff|log|show|add|commit)( |$)" }
   ]
 }

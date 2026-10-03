@@ -3,9 +3,9 @@ Description=Michel - synthese vocale Supertonic 3 (Supertone, 10 voix natives)
 
 [Service]
 WorkingDirectory=@APP@
-Environment=JARVIS_TTS_THREADS=4
+Environment=MICHEL_TTS_THREADS=4
 # 16 diffusion steps (model default 8): cleaner voice and intonation, still fast on the CPU
-Environment=JARVIS_SUPERTONIC_STEPS=16
+Environment=MICHEL_SUPERTONIC_STEPS=16
 ExecStart=@APP@/.venv/bin/python tts/supertonic_server.py 8182
 Restart=always
 RestartSec=3

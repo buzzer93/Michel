@@ -22,7 +22,7 @@ function Invoke-MichelSystemctl {
 function Get-MichelHealth { return @{ Running = $true; Gateway = $true } }
 function Assert($Condition, $Message) { if (-not $Condition) { throw $Message } }
 
-foreach ($backend in @('michel','jarvis')) {
+foreach ($backend in @('michel','michel')) {
     $script:Backend = $backend
     $script:Calls = @()
     $script:States = (@('inactive') * 7) -join ([Environment]::NewLine + [Environment]::NewLine)

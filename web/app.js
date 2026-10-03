@@ -447,7 +447,7 @@ function toast(text, level = "info") {
 // ───────────────────────────── controls ─────────────────────────────
 // Hands-free listening (the VAD) is off by default: push-to-talk is enough. The mic button or "M" turns it on,
 // and the choice is remembered for the next visits.
-const HANDS_FREE_KEY = "jarvis.handsfree";
+const HANDS_FREE_KEY = "michel.handsfree";
 const rememberHandsFree = (on) => { try { localStorage.setItem(HANDS_FREE_KEY, on ? "on" : "off"); } catch { /* storage blocked */ } };
 const handsFreeWanted = () => { try { return localStorage.getItem(HANDS_FREE_KEY) === "on"; } catch { return false; } };
 async function pauseMic() { await micVad?.pause(); micOn = false; userSpeaking = false; liveCaption(false); refreshState(); }
@@ -470,9 +470,9 @@ $("shutdown-confirm").onclick = async () => {
     const response = await fetch("/api/stop-all", { method: "POST", headers: { "content-type": "application/json" } });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     $("shutdown-dialog").close();
-    toast("Arrêt de Jarvis demandé");
+    toast("Arrêt de Michel demandé");
   } catch {
-    toast("Impossible d’arrêter Jarvis", "error");
+    toast("Impossible d’arrêter Michel", "error");
   } finally {
     button.disabled = false;
   }
@@ -499,7 +499,7 @@ $("gate-btn").onclick = async () => {
   // The mic opens now, inside the click: some browsers (Safari, iPad) only grant it within the user gesture.
   // What it hears during the startup sequence is ignored (see `booting`), so the sound effects never reach the VAD.
   const mic = startMic();
-  const sfx = localStorage.getItem("jarvis.sfx") === "off" ? { key() {}, ignite() {}, ready() {} } : bootSfx(actx);
+  const sfx = localStorage.getItem("michel.sfx") === "off" ? { key() {}, ignite() {}, ready() {} } : bootSfx(actx);
   document.body.classList.add("booting");
   $("gate").classList.add("open");
   setTimeout(() => $("gate").remove(), 900);
@@ -538,7 +538,7 @@ refreshState();
 new Parallax([[$("orb-wrap"), 14], [$("backdrop"), -8], [$("ident"), 8]]);
 
 // Test hooks (used by the automated checks; harmless in production).
-window.jarvis = {
+window.michel = {
   say: (text) => send({ t: "text", text }),
   injectAudio: async (url) => { const b = await (await fetch(url)).arrayBuffer(); send({ t: "utt", ms: 0 }); ws.send(b); },
   state: () => ({ active, state: document.body.dataset.state, queue: queue.length, playing: Boolean(current), agents: [...agents.values()].map((a) => [a.id, a.status]) }),

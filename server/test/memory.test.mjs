@@ -16,7 +16,7 @@ test("mémoire : propositions lues ligne à ligne, le reste ignoré", () => {
 });
 
 test("mémoire : valider ajoute au bon fichier (en place), rejeter n'ajoute rien", () => {
-  const dir = mkdtempSync(join(tmpdir(), "jarvis-mem-"));
+  const dir = mkdtempSync(join(tmpdir(), "michel-mem-"));
   try {
     writeFileSync(join(dir, "propositions.md"), SAMPLE);
     writeFileSync(join(dir, "USER.md"), "L'utilisateur parle français.\n");

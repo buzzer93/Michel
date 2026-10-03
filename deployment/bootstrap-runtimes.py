@@ -4,7 +4,7 @@ import pathlib
 import subprocess
 import urllib.request
 
-cache = pathlib.Path('/opt/jarvis-downloads')
+cache = pathlib.Path('/opt/michel-downloads')
 cache.mkdir(exist_ok=True)
 
 def fetch_json(url):
@@ -30,7 +30,7 @@ base = f'https://nodejs.org/dist/{version}'
 with urllib.request.urlopen(base + '/SHASUMS256.txt') as response:
     checksums = dict((line.split()[1], line.split()[0]) for line in response.read().decode().splitlines())
 archive = download(base + '/' + filename, filename, checksums[filename])
-path = pathlib.Path('/opt/jarvis-node')
+path = pathlib.Path('/opt/michel-node')
 path.mkdir(exist_ok=True)
 subprocess.run(['tar', '-xJf', str(archive), '--strip-components=1', '-C', str(path)], check=True)
 print('Node installed:', version, flush=True)
@@ -39,7 +39,7 @@ release = fetch_json('https://api.github.com/repos/ollama/ollama/releases/tags/v
 asset = next(asset for asset in release['assets'] if asset['name'] == 'ollama-linux-amd64.tar.zst')
 expected = '1c114a6b220c5efca2ef2b1e5f01d1e535e26f6cd6d1678c8489325d2835e525'
 archive = download(asset['browser_download_url'], asset['name'], expected)
-path = pathlib.Path('/opt/jarvis-ollama')
+path = pathlib.Path('/opt/michel-ollama')
 path.mkdir(exist_ok=True)
 subprocess.run(['tar', '--zstd', '-xf', str(archive), '-C', str(path)], check=True)
 print('Ollama installed:', release['tag_name'], flush=True)

@@ -24,12 +24,12 @@ from supertonic import TTS              # noqa: E402
 
 from fr_normalize import supertonic_respell  # noqa: E402
 
-LANG = os.environ.get("JARVIS_TTS_LANG", "fr")  # respellings below are French: applied only when LANG == "fr"
+LANG = os.environ.get("MICHEL_TTS_LANG", "fr")  # respellings below are French: applied only when LANG == "fr"
 STEPS_RANGE = (1, 32)
-STEPS = min(STEPS_RANGE[1], max(STEPS_RANGE[0], int(os.environ.get("JARVIS_SUPERTONIC_STEPS", "8"))))  # 8 = model default
+STEPS = min(STEPS_RANGE[1], max(STEPS_RANGE[0], int(os.environ.get("MICHEL_SUPERTONIC_STEPS", "8"))))  # 8 = model default
 OUT_RATE = 24000
 t0 = time.time()
-tts = TTS(model="supertonic-3", auto_download=True, intra_op_num_threads=int(os.environ.get("JARVIS_TTS_THREADS", "4")))
+tts = TTS(model="supertonic-3", auto_download=True, intra_op_num_threads=int(os.environ.get("MICHEL_TTS_THREADS", "4")))
 voices = json.loads((APP / "vendor" / "voices" / "voices.json").read_text())["voices"]
 STYLES = {name: tts.get_voice_style(name) for name in tts.voice_style_names}
 CFG = {}

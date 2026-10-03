@@ -6,7 +6,7 @@ import WebSocket from 'ws';
 const typed = process.argv.includes('--typed');
 const arithmetic = process.argv.includes('--arithmetic');
 const mode = typed ? 'typed' : 'spoken';
-const directory = '/var/lib/jarvis/verification';
+const directory = '/var/lib/michel/verification';
 mkdirSync(directory, { recursive: true });
 const phrase = arithmetic ? 'Michel, combien font douze fois douze ? Réponds en une phrase.' : 'Michel, dis exactement : bonjour, la connexion vocale fonctionne.';
 let input;

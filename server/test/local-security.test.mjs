@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { request } from 'node:http';
 import WebSocket from 'ws';
 
-const enabled = process.env.JARVIS_TEST_LOCAL_SECURITY === '1';
+const enabled = process.env.MICHEL_TEST_LOCAL_SECURITY === '1';
 
 test('local-only rejects a foreign Host header', { skip: !enabled }, async () => {
   const status = await new Promise((resolve, reject) => {

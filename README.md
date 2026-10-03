@@ -39,7 +39,7 @@ More detailed documents, in French: [UTILISATION.md](UTILISATION.md) (day-to-day
 - **Wake by name.** Each OpenClaw agent answers to its own first name, at the start or at the end of a
   sentence. For two minutes after an answer you can keep talking to the same agent without repeating
   its name. Sentences without a name are shown in grey and sent to nobody.
-- **Several agents at once.** Each agent works in its own OpenClaw session (`agent:<id>:jarvis`);
+- **Several agents at once.** Each agent works in its own OpenClaw session (`agent:<id>:michel`);
   calling a second agent never interrupts the first one. Asking an agent something while it is still
   working is fine too: the answer is not lost.
 - **Voice control.** *"Stop"* cuts the voice (the task goes on); *"Neo, annule"* cancels Neo's task.
@@ -82,25 +82,25 @@ governs what the agents do (see `plan.md` for the design and the evidence of eac
 ```
 Browser (PC / tablet / phone)                  Host running the OpenClaw Gateway
 ┌──────────────────────────────┐    HTTPS     ┌───────────────────────────────────────────────────┐
-│ microphone → voice detection │ ───────────▶ │ jarvis-web        Node, :8443 (LAN), :8480 (local) │
-│ orb, subtitles, playback     │ ◀─────────── │  ├─▶ jarvis-stt          whisper.cpp small        │
-└──────────────────────────────┘  WebSocket   │  ├─▶ jarvis-stt-precise  whisper.cpp large-v3-turbo│
-                                              │  ├─▶ jarvis-tts          voice router + numbers   │
-                                              │  │    └─▶ jarvis-tts-st  Supertonic 3             │
+│ microphone → voice detection │ ───────────▶ │ michel-web        Node, :8443 (LAN), :8480 (local) │
+│ orb, subtitles, playback     │ ◀─────────── │  ├─▶ michel-stt          whisper.cpp small        │
+└──────────────────────────────┘  WebSocket   │  ├─▶ michel-stt-precise  whisper.cpp large-v3-turbo│
+                                              │  ├─▶ michel-tts          voice router + numbers   │
+                                              │  │    └─▶ michel-tts-st  Supertonic 3             │
                                               │  └─▶ OpenClaw Gateway    loopback, chat.send      │
                                               └───────────────────────────────────────────────────┘
 ```
 
 | Service (`systemd --user`) | Role | Listens on |
 |---|---|---|
-| `jarvis-web` | web page, WebSocket, wake-word routing, bridge to the OpenClaw Gateway | `0.0.0.0:8443` (HTTPS), `127.0.0.1:8480` (HTTP, local only) |
-| `jarvis-stt` | whisper.cpp `small`: short utterances (names, "stop") | `127.0.0.1:8178` |
-| `jarvis-stt-precise` | whisper.cpp `large-v3-turbo` (q5): full sentences | `127.0.0.1:8188` |
-| `jarvis-tts` | text-to-speech entry point: pronunciation lexicon, numbers in words, voice routing, Piper fallback | `127.0.0.1:8179` |
-| `jarvis-tts-st` | Supertonic 3 engine (ONNX, CPU) | `127.0.0.1:8182` |
+| `michel-web` | web page, WebSocket, wake-word routing, bridge to the OpenClaw Gateway | `0.0.0.0:8443` (HTTPS), `127.0.0.1:8480` (HTTP, local only) |
+| `michel-stt` | whisper.cpp `small`: short utterances (names, "stop") | `127.0.0.1:8178` |
+| `michel-stt-precise` | whisper.cpp `large-v3-turbo` (q5): full sentences | `127.0.0.1:8188` |
+| `michel-tts` | text-to-speech entry point: pronunciation lexicon, numbers in words, voice routing, Piper fallback | `127.0.0.1:8179` |
+| `michel-tts-st` | Supertonic 3 engine (ONNX, CPU) | `127.0.0.1:8182` |
 
 The page detects when you speak (Silero VAD, running in the browser) and sends the audio to
-`jarvis-web`. The server transcribes it with Whisper, finds which agent you called, and sends your
+`michel-web`. The server transcribes it with Whisper, finds which agent you called, and sends your
 sentence to that agent with `chat.send` on the Gateway. The streamed answer is split into sentences,
 each one synthesised as soon as it arrives and played back in the browser.
 
@@ -108,7 +108,7 @@ each one synthesised as soon as it arrives and played back in the browser.
 
 - **OS:** Linux with `systemd --user` (developed on Ubuntu 24.04, x86-64). macOS and Windows are not
   supported by the install script.
-- **OpenClaw** installed on the **same machine**, with the Gateway running. `jarvis-web` reads the
+- **OpenClaw** installed on the **same machine**, with the Gateway running. `michel-web` reads the
   Gateway port, its token and your agents from `~/.openclaw/openclaw.json` and connects over loopback.
 - **Node.js ≥ 22.19**, **Python 3.12** with [`uv`](https://docs.astral.sh/uv/), `git`, `curl`, a C/C++
   compiler (`gcc`/`g++`).
@@ -117,7 +117,7 @@ each one synthesised as soon as it arrives and played back in the browser.
   CPU only (slower) or for CUDA.
 - **Resources:** about 6 GB of disk (Whisper models, voices, build tools) and about 1.3 GB of RAM when
   running (Supertonic about 0.7 GB). Reference machine: Ryzen 7 6800H with its integrated Radeon 680M.
-- **Google Chrome** at `/usr/bin/google-chrome` (or set `JARVIS_CHROME`), only for browser windows.
+- **Google Chrome** at `/usr/bin/google-chrome` (or set `MICHEL_CHROME`), only for browser windows.
 - **No root needed**, except to open the HTTPS port if you run a firewall.
 
 ## Installation
@@ -154,7 +154,7 @@ curl -L -o vendor/models/ggml-small.bin \
 ```
 
 Make sure the GPU is really used: `vulkaninfo --summary` must list your GPU, and once the services run,
-the `jarvis-stt-precise` log must show a `ggml_vulkan:` line naming it (not `llvmpipe`). Detailed notes
+the `michel-stt-precise` log must show a `ggml_vulkan:` line naming it (not `llvmpipe`). Detailed notes
 and benchmarks: [vendor/WHISPER.md](vendor/WHISPER.md).
 
 ### 2. Speech synthesis (Supertonic 3, with Piper as fallback)
@@ -172,7 +172,7 @@ done; done
 ```
 
 The Supertonic 3 weights (about 390 MB) are downloaded into `vendor/supertonic3/` the first time
-`jarvis-tts-st` starts. Older optional engines (Kokoro, Pocket TTS, MeloTTS + OpenVoice) are described
+`michel-tts-st` starts. Older optional engines (Kokoro, Pocket TTS, MeloTTS + OpenVoice) are described
 in [INSTALLATION.md](INSTALLATION.md) § 3; they are not needed.
 
 ### 3. Web server
@@ -184,20 +184,20 @@ cd server && npm ci && cd ..
 ### 4. Services, HTTPS certificate, auto-start
 
 ```bash
-bin/jarvis install                  # installs and starts the systemd --user units, creates the certificate
+bin/michel install                  # installs and starts the systemd --user units, creates the certificate
 loginctl enable-linger "$USER"      # keeps the services running without an open session (once)
-bin/jarvis status                   # every service "active", then {"ok":true,"gateway":true}
-bin/jarvis url                      # the addresses to open
+bin/michel status                   # every service "active", then {"ok":true,"gateway":true}
+bin/michel url                      # the addresses to open
 ```
 
-`bin/jarvis install` writes the units to `~/.config/systemd/user/`, enables them at boot, and creates a
+`bin/michel install` writes the units to `~/.config/systemd/user/`, enables them at boot, and creates a
 local certificate authority and a server certificate with [mkcert](https://github.com/FiloSottile/mkcert)
 (downloaded into `vendor/`) for every IP address and name of the machine.
 
 ### 5. Check
 
 ```bash
-bin/jarvis test
+bin/michel test
 ```
 
 Unit tests first, then an end-to-end check that really talks to your agents: a synthesised sentence
@@ -211,8 +211,8 @@ two-agent scenario with "stop" and "annule".
 - **On the host itself:** open `http://localhost:8480`. No certificate, no access code.
 - **From another device on the network** (PC, tablet, phone): browsers only give the microphone to
   HTTPS pages, so each device must trust the app's local certificate authority **once**.
-  1. Open `https://<host-ip>:8443/ca.crt` and accept the warning this one time: `jarvis-ca.crt`
-     downloads. `bin/jarvis url` prints the exact address.
+  1. Open `https://<host-ip>:8443/ca.crt` and accept the warning this one time: `michel-ca.crt`
+     downloads. `bin/michel url` prints the exact address.
   2. Install it as a trusted authority:
      - **Windows:** double-click → Install → Local machine → "Trusted Root Certification Authorities".
      - **macOS:** double-click → Keychain Access → "Always Trust".
@@ -220,16 +220,16 @@ two-agent scenario with "stop" and "annule".
      - **iPhone / iPad:** open the file → Settings → Profile Downloaded → Install, then Settings →
        General → About → Certificate Trust Settings → enable it.
      - **Linux (Chrome / Firefox):** Settings → Certificates → Authorities → Import.
-  3. Open `https://<host-ip>:8443` and type the access code shown by `bin/jarvis code` on the host.
+  3. Open `https://<host-ip>:8443` and type the access code shown by `bin/michel code` on the host.
   4. Optional: "Add to Home Screen" for a full-screen, app-like experience.
 
   With a firewall, open the port for your LAN, for example
   `sudo ufw allow from 192.168.1.0/24 to any port 8443 proto tcp`. If the host's IP address changes,
-  run `bin/jarvis certs`: devices keep trusting the same authority. With
+  run `bin/michel certs`: devices keep trusting the same authority. With
   [Tailscale](https://tailscale.com), `tailscale serve --bg https+insecure://localhost:8443` gives a real
   certificate and nothing to import.
 - Touch **ACTIVER** and allow the microphone. A ~4-second startup sequence plays; what the microphone
-  hears during it is ignored. To mute its sound effects: `localStorage.setItem("jarvis.sfx", "off")` in
+  hears during it is ignored. To mute its sound effects: `localStorage.setItem("michel.sfx", "off")` in
   the browser console. Then just talk.
 
 ### Talk to your agents
@@ -254,7 +254,7 @@ Good to know:
 - A name **in the middle** of a sentence wakes nobody (« j'ai vu le rapport de Neo hier »).
 - While an agent is speaking, only "stop" and a call by name are taken into account, so it never
   answers itself.
-- The voice conversation lives in the agent's OpenClaw session `agent:<id>:jarvis`: you can read it in
+- The voice conversation lives in the agent's OpenClaw session `agent:<id>:michel`: you can read it in
   the OpenClaw Control UI, and the agent keeps the thread from one day to the next.
 - Count about 4 s between the end of your sentence and the start of a simple answer; longer when the
   agent uses tools (you see it working on the orb and in the activity rail).
@@ -291,7 +291,7 @@ agent `main` comes first; if it has no name in OpenClaw, it answers to **"Michel
 *main* would wake it by accident). Each agent gets an alias (its name in lower case without accents,
 plus its id), a neon colour and a voice from the catalogue, all stable from one start to the next.
 
-After adding or renaming an agent in OpenClaw, run `bin/jarvis restart`.
+After adding or renaming an agent in OpenClaw, run `bin/michel restart`.
 
 To fine-tune, create local files. They are ignored by git; the `*.example.json` files show the format.
 
@@ -320,36 +320,36 @@ The Gateway token and port are read from `~/.openclaw/openclaw.json` at start-up
 
 | File | Content |
 |---|---|
-| `config/settings.json` | `userName`; ports (`httpsPort` 8443, `httpPort` 8480) and `bind`; service URLs; `sessionSuffix` (`jarvis`); follow-up window `followUpMs` (2 min); `wakePhrases`; optional Whisper prompt `sttPrompt` (generated from your agent names otherwise); `debug` |
+| `config/settings.json` | `userName`; ports (`httpsPort` 8443, `httpPort` 8480) and `bind`; service URLs; `sessionSuffix` (`michel`); follow-up window `followUpMs` (2 min); `wakePhrases`; optional Whisper prompt `sttPrompt` (generated from your agent names otherwise); `debug` |
 | `config/agents.json` | optional agent list (replaces the discovery) |
 | `config/pronunciation.json` | optional forced pronunciations |
 | `vendor/voices/voices.json` | voice catalogue |
 | `config/access-code.txt` | LAN access code, generated; delete it and restart to get a new one |
 | `certs/` | local certificate authority and server certificate |
 
-Environment variables: `JARVIS_CHROME` (Chrome path), `JARVIS_TTS_THREADS` (Supertonic threads,
-default 4), `JARVIS_SUPERTONIC_STEPS` (quality steps, 1-32, default 8), `JARVIS_AGENTS_FILE`
-(alternative agents file), `JARVIS_HTTP_PORT` (local HTTP port).
+Environment variables: `MICHEL_CHROME` (Chrome path), `MICHEL_TTS_THREADS` (Supertonic threads,
+default 4), `MICHEL_SUPERTONIC_STEPS` (quality steps, 1-32, default 8), `MICHEL_AGENTS_FILE`
+(alternative agents file), `MICHEL_HTTP_PORT` (local HTTP port).
 
 ## Operations
 
 | Command | Effect |
 |---|---|
-| `bin/jarvis status` | state of the services and of the Gateway link |
-| `bin/jarvis start` / `stop` / `restart` | control the services |
-| `bin/jarvis logs` | live logs; errors from the page appear as `page: …` |
-| `bin/jarvis url` | access addresses |
-| `bin/jarvis code` | LAN access code |
-| `bin/jarvis certs` | regenerate the HTTPS certificate (after an IP change) |
-| `bin/jarvis test` | unit tests, end-to-end check, two-agent scenario |
-| `bin/jarvis uninstall` | remove the services (files are kept) |
+| `bin/michel status` | state of the services and of the Gateway link |
+| `bin/michel start` / `stop` / `restart` | control the services |
+| `bin/michel logs` | live logs; errors from the page appear as `page: …` |
+| `bin/michel url` | access addresses |
+| `bin/michel code` | LAN access code |
+| `bin/michel certs` | regenerate the HTTPS certificate (after an IP change) |
+| `bin/michel test` | unit tests, end-to-end check, two-agent scenario |
+| `bin/michel uninstall` | remove the services (files are kept) |
 
 Agent evaluations (bundled team, run as the service account): `server/evals/run.mjs` writes a report to
 `docs/evals/`; `server/evals/improve.mjs` runs one pass of the improvement loop (weekly through
-`jarvis-improve.timer`), and `--apply-repo <id>` copies an applied change into the repository.
+`michel-improve.timer`), and `--apply-repo <id>` copies an applied change into the repository.
 
 Other checks: `node server/test/ui.mjs` drives the real page in headless Chrome with a fake microphone
-and saves screenshots to `/tmp/jarvis`; `.venv/bin/python -m unittest tts/test_fr_normalize.py` tests
+and saves screenshots to `/tmp/michel`; `.venv/bin/python -m unittest tts/test_fr_normalize.py` tests
 how numbers are read.
 
 ## Troubleshooting
@@ -357,21 +357,21 @@ how numbers are read.
 | Symptom | What to check |
 |---|---|
 | « Micro indisponible » | page opened over plain HTTP from another device, certificate authority not imported, or microphone denied in the browser |
-| Nobody answers and no subtitle appears | `bin/jarvis logs`: if no `entendu:` line appears when you speak, the page sends nothing; look for a `page:` error line (microphone refused, script error) |
-| « liaison perdue » | the Gateway is down: `openclaw status`, then `bin/jarvis restart` |
-| « Reconnaissance vocale indisponible » | `journalctl --user -u jarvis-stt-precise -n 50`, and check the `ggml_vulkan:` line |
+| Nobody answers and no subtitle appears | `bin/michel logs`: if no `entendu:` line appears when you speak, the page sends nothing; look for a `page:` error line (microphone refused, script error) |
+| « liaison perdue » | the Gateway is down: `openclaw status`, then `bin/michel restart` |
+| « Reconnaissance vocale indisponible » | `journalctl --user -u michel-stt-precise -n 50`, and check the `ggml_vulkan:` line |
 | An agent does not wake up on its name | read the grey subtitle (what Whisper heard) and add it to the agent's `aliases` |
 | A word or a name is mispronounced | add it to `config/pronunciation.json` |
 | A number, time or amount is read wrongly | add the case to `tts/fr_normalize.py`, with a test in `tts/test_fr_normalize.py` |
 | The agent hears itself | lower the volume, move the microphone away from the speakers, or use a headset |
-| The page cannot be reached from another device | `bin/jarvis status` first, then the firewall (port 8443) and Wi-Fi client isolation on the router |
+| The page cannot be reached from another device | `bin/michel status` first, then the firewall (port 8443) and Wi-Fi client isolation on the router |
 
 ## Limitations
 
 - **French only for now.** Another language means changing Whisper's `-l fr` in
-  `systemd/jarvis-stt*.service`, choosing voices for that language, replacing the French number
+  `systemd/michel-stt*.service`, choosing voices for that language, replacing the French number
   normaliser (`tts/fr_normalize.py`), and translating the interface strings.
-- **Same machine as the Gateway:** `jarvis-web` reaches the Gateway over loopback and reads
+- **Same machine as the Gateway:** `michel-web` reaches the Gateway over loopback and reads
   `~/.openclaw/openclaw.json` locally.
 - **No emotions** in the voices (Supertonic 3 has none). One speaker at a time on the microphone, and no
   speaker identification.

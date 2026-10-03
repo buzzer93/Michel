@@ -43,9 +43,9 @@ log(`agents (${agentsSource}) : ${agentsCfg.map((a) => `${a.name}[${a.id}]→${v
 
 function envOverrides() {
   const o = {};
-  if (process.env.JARVIS_DEBUG) o.debug = true;
-  if (process.env.JARVIS_HTTPS_PORT) o.httpsPort = Number(process.env.JARVIS_HTTPS_PORT);
-  if (process.env.JARVIS_HTTP_PORT) o.httpPort = Number(process.env.JARVIS_HTTP_PORT);
+  if (process.env.MICHEL_DEBUG) o.debug = true;
+  if (process.env.MICHEL_HTTPS_PORT) o.httpsPort = Number(process.env.MICHEL_HTTPS_PORT);
+  if (process.env.MICHEL_HTTP_PORT) o.httpPort = Number(process.env.MICHEL_HTTP_PORT);
   return o;
 }
 
@@ -57,7 +57,7 @@ if (!existsSync(secretFile)) {
   writeFileSync(secretFile, randomBytes(32).toString("hex") + "\n", { mode: 0o600 });
 }
 const accessCode = readFileSync(secretFile, "utf8").trim();
-const cookieValue = createHash("sha256").update("jarvis-session|" + accessCode).digest("hex");
+const cookieValue = createHash("sha256").update("michel-session|" + accessCode).digest("hex");
 const safeEq = (first, second) => {
   const firstBytes = Buffer.from(first), secondBytes = Buffer.from(second);
   return firstBytes.length === secondBytes.length && timingSafeEqual(firstBytes, secondBytes);
@@ -405,7 +405,7 @@ async function synth(agentId, text) {
 const sttPrompt = settings.sttPrompt ?? buildSttPrompt(agentsCfg);
 debug("sttPrompt:", sttPrompt);
 // settings.sttEngine "openai": OpenAI's transcription API first (key in OPENAI_API_KEY, given to the service
-// by /var/lib/jarvis/secrets/openai-voice.env), the local Whisper servers as fallback when it fails or is
+// by /var/lib/michel/secrets/openai-voice.env), the local Whisper servers as fallback when it fails or is
 // unreachable. "local" (default): Whisper only, nothing leaves the machine.
 const OPENAI_STT_URL = "https://api.openai.com/v1/audio/transcriptions";
 const useOpenaiStt = settings.sttEngine === "openai" && Boolean(process.env.OPENAI_API_KEY);
@@ -519,7 +519,7 @@ async function sendHistory(client, agentId) {
 
 async function sendToAgent(client, agentId, text, sttMs = null) {
   if (!gatewayUp) return send(client.id, { t: "notice", id: agentId, level: "error", text: "Gateway OpenClaw injoignable" });
-  const runId = `jarvis-${randomUUID()}`;
+  const runId = `michel-${randomUUID()}`;
   const allowWindow = wantsWindow(text);
   lastClientFor.set(agentId, client.id);
   delegationCount.set(agentId, 0); // a new user request: a fresh delegation budget
@@ -808,18 +808,19 @@ function handler(req, res) {
     });
     return;
   }
-  if (url.pathname === "/ca.crt") return serveFile(res, join(APP, "certs/rootCA.pem"), { "content-disposition": 'attachment; filename="jarvis-ca.crt"' });
+  if (url.pathname === "/ca.crt") return serveFile(res, join(APP, "certs/rootCA.pem"), { "content-disposition": 'attachment; filename="michel-ca.crt"' });
   if (url.pathname === "/healthz") { res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ ok: true, gateway: gatewayUp })); return; }
   if (url.pathname === "/api/stop-all" && req.method === "POST") {
     if (!hasSession(req)) { res.writeHead(401).end(); return; }
     if (!req.headers.origin || !sameOrigin(req)) { res.writeHead(403).end(); return; }
-    const systemManaged = process.env.HOME === "/var/lib/jarvis";
+    const systemManaged = process.env.HOME === "/var/lib/michel";
     const systemStopConfigured = existsSync(SYSTEM_STOP_UNIT_FILE);
     if (systemManaged && !systemStopConfigured) {
       res.writeHead(503, { "content-type": "application/json" }).end('{"error":"reconfigurez les services système"}');
       return;
     }
     const [command, args] = stopAllCommand(systemManaged);
+    log(`arrêt complet demandé depuis le dashboard (${req.socket.remoteAddress})`); // traceable: it stops every service
     res.writeHead(202, { "content-type": "application/json", "cache-control": "no-store" }).end('{"ok":true}');
     res.once("finish", () => {
       const child = spawn(command, args, { stdio: "ignore" });

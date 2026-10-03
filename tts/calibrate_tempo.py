@@ -2,7 +2,7 @@
 """Align every voice's speaking rate on a reference voice (default: the first voice of the catalogue).
 Synthesises one calibration sentence per voice through the Pocket TTS sidecar (no tempo applied),
 measures the audio duration, and writes tempo = duration / reference_duration into voices.json.
-Usage: .venv/bin/python tts/calibrate_tempo.py [reference_voice_id]   then restart jarvis-tts."""
+Usage: .venv/bin/python tts/calibrate_tempo.py [reference_voice_id]   then restart michel-tts."""
 import io, json, sys, urllib.request, soundfile as sf
 from pathlib import Path
 APP = Path(__file__).resolve().parent.parent
@@ -23,4 +23,4 @@ for k in ids:
     v[k]["tempo"] = round(dur[k] / dur[REF], 3)
     print(f"{k:{width}s} tempo {v[k]['tempo']}")
 p.write_text(json.dumps(c, ensure_ascii=False, indent=2) + "\n")
-print("voices.json mis à jour — redémarrer jarvis-tts")
+print("voices.json mis à jour — redémarrer michel-tts")

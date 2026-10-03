@@ -2,8 +2,8 @@
 
 ## Démarrer
 
-1. Ouvrir `http://localhost:8480` sur la machine hôte, ou `https://<ip-de-la-machine>:8443` depuis un autre appareil (première fois : voir `INSTALLATION.md` § 4, puis saisir le code donné par `bin/jarvis code`).
-2. Toucher **ACTIVER** et autoriser le micro. Ce geste est imposé par les navigateurs pour ouvrir le micro et le son ; l'écran reste ensuite allumé tant que la page est visible. Le micro s'ouvre au même moment (certains navigateurs ne l'accordent que pendant ce geste), mais ce qu'il entend pendant la séquence de démarrage (≈ 4 s, avec effets sonores synthétisés dans le navigateur) est ignoré. Pour la jouer sans le son : `localStorage.setItem("jarvis.sfx", "off")` dans la console du navigateur.
+1. Ouvrir `http://localhost:8480` sur la machine hôte, ou `https://<ip-de-la-machine>:8443` depuis un autre appareil (première fois : voir `INSTALLATION.md` § 4, puis saisir le code donné par `bin/michel code`).
+2. Toucher **ACTIVER** et autoriser le micro. Ce geste est imposé par les navigateurs pour ouvrir le micro et le son ; l'écran reste ensuite allumé tant que la page est visible. Le micro s'ouvre au même moment (certains navigateurs ne l'accordent que pendant ce geste), mais ce qu'il entend pendant la séquence de démarrage (≈ 4 s, avec effets sonores synthétisés dans le navigateur) est ignoré. Pour la jouer sans le son : `localStorage.setItem("michel.sfx", "off")` dans la console du navigateur.
 3. Parler.
 
 ## Parler aux agents
@@ -24,7 +24,7 @@ Bon à savoir :
 - Sans prénom et plus de 2 minutes après le dernier échange, votre phrase s'affiche en gris avec la raison (« non transmis — dites le prénom ») puis disparaît : elle n'est envoyée à personne. Vous pouvez donc parler à quelqu'un d'autre dans la pièce.
 - Un prénom **au milieu** d'une phrase ne réveille pas l'agent (« j'ai vu le rapport de Neo hier »).
 - Pendant qu'un agent parle, seuls « stop » et un appel par prénom sont pris en compte, pour qu'il ne se réponde pas à lui-même. Pour l'interrompre et enchaîner : « Neo, … ».
-- Chaque agent garde le fil : la conversation vocale vit dans sa session OpenClaw `agent:<id>:jarvis`, visible aussi dans l'interface de contrôle d'OpenClaw.
+- Chaque agent garde le fil : la conversation vocale vit dans sa session OpenClaw `agent:<id>:michel`, visible aussi dans l'interface de contrôle d'OpenClaw.
 
 ## Lire l'écran
 

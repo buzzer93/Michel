@@ -2,14 +2,14 @@
 // the detail window and the browser window to appear, then screenshot.
 import puppeteer from "puppeteer-core";
 import { mkdirSync } from "node:fs";
-const shots = "/tmp/jarvis-win"; mkdirSync(shots, { recursive: true });
+const shots = "/tmp/michel-win"; mkdirSync(shots, { recursive: true });
 const browser = await puppeteer.launch({ executablePath: "/usr/bin/google-chrome", headless: "new",
   args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--enable-unsafe-swiftshader", "--use-angle=swiftshader", "--no-sandbox", "--window-size=1440,900"] });
 const page = await browser.newPage(); await page.setViewport({ width: 1440, height: 900 });
 const errors = []; page.on("pageerror", (e) => errors.push(e.message)); page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
 await page.goto("http://localhost:8480/", { waitUntil: "networkidle0" });
 await page.click("#gate-btn"); await new Promise((r) => setTimeout(r, 1000));
-await page.evaluate(() => window.jarvis.say("Neo, réponds en une phrase, ouvre une fenêtre navigateur sur https://github.com/openclaw/openclaw avec le titre Exemple, et mets dans le détail un tableau de deux lignes."));
+await page.evaluate(() => window.michel.say("Neo, réponds en une phrase, ouvre une fenêtre navigateur sur https://github.com/openclaw/openclaw avec le titre Exemple, et mets dans le détail un tableau de deux lignes."));
 const t0 = Date.now();
 try { await page.waitForSelector('.win-browser .view img[src^="blob:"]', { timeout: 120000 }); } catch { console.log("pas d'image de page après 120 s"); }
 await new Promise((r) => setTimeout(r, 2500));

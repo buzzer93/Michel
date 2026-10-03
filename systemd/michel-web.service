@@ -1,0 +1,13 @@
+[Unit]
+Description=Michel - serveur web et pont OpenClaw
+After=michel-stt.service michel-stt-precise.service michel-tts.service michel-tts-st.service openclaw-gateway.service
+Wants=michel-stt.service michel-stt-precise.service michel-tts.service michel-tts-st.service
+
+[Service]
+WorkingDirectory=@APP@/server
+ExecStart=@NODE@ server.mjs
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

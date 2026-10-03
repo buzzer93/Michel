@@ -3,7 +3,7 @@ Description=Michel - synthese vocale Pocket TTS (Kyutai, timbres clones)
 
 [Service]
 WorkingDirectory=@APP@
-Environment=JARVIS_TTS_THREADS=6
+Environment=MICHEL_TTS_THREADS=6
 ExecStart=@APP@/.venv/bin/python tts/pockettts_server.py 8181
 Restart=always
 RestartSec=3

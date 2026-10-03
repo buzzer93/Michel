@@ -51,15 +51,9 @@ function Invoke-MichelSystemctl {
 
 function Invoke-MichelAction {
     param([string]$RequestedAction)
-    # Accept the existing installation until its separate service migration is finished.
-    $prefix = 'michel'
     $loadState = Invoke-MichelSystemctl -Arguments @('show', '--property=LoadState', '--value', 'michel-web.service')
-    if ($loadState -ne 'loaded') {
-        $loadState = Invoke-MichelSystemctl -Arguments @('show', '--property=LoadState', '--value', 'jarvis-web.service')
-        if ($loadState -ne 'loaded') { throw "Les services de Michel ne sont pas installes dans $Distribution." }
-        $prefix = 'jarvis'
-    }
-    $units = @("$prefix-web", 'openclaw-gateway', "$prefix-stt", "$prefix-stt-precise", "$prefix-tts", "$prefix-tts-st", "$prefix-ollama")
+    if ($loadState -ne 'loaded') { throw "Les services de Michel ne sont pas installes dans $Distribution." }
+    $units = @('michel-web', 'openclaw-gateway', 'michel-stt', 'michel-stt-precise', 'michel-tts', 'michel-tts-st', 'michel-ollama')
     if ($RequestedAction -eq 'Stop') {
         [void](Invoke-MichelSystemctl -Arguments (@('stop') + $units))
         $states = Invoke-MichelSystemctl -Arguments (@('show', '--property=ActiveState', '--value') + $units)

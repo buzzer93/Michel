@@ -6,8 +6,8 @@ import tarfile
 import urllib.request
 
 # CLIs used by the tool agents (agenda: gog, dev: gh + docker) and the Claude Code runtime.
-# Run as root after bootstrap-runtimes.py; logins are done afterwards as the jarvis user.
-cache = pathlib.Path('/opt/jarvis-downloads')
+# Run as root after bootstrap-runtimes.py; logins are done afterwards as the michel user.
+cache = pathlib.Path('/opt/michel-downloads')
 cache.mkdir(exist_ok=True)
 bin_dir = pathlib.Path('/usr/local/bin')
 
@@ -54,6 +54,6 @@ archive = download(f'{base}/{filename}', filename, fetch_checksums(f'{base}/gh_{
 install_binary(archive, 'gh')
 print('gh installed:', version, flush=True)
 
-subprocess.run(['/opt/jarvis-node/bin/npm', 'install', '--global', '--prefix', '/opt/jarvis-node', '@anthropic-ai/claude-code@2.1.285'],
-               env={'PATH': '/opt/jarvis-node/bin:/usr/bin:/bin'}, check=True)
+subprocess.run(['/opt/michel-node/bin/npm', 'install', '--global', '--prefix', '/opt/michel-node', '@anthropic-ai/claude-code@2.1.285'],
+               env={'PATH': '/opt/michel-node/bin:/usr/bin:/bin'}, check=True)
 print('Claude Code installed: 2.1.285', flush=True)

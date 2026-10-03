@@ -16,7 +16,7 @@ APP = Path(__file__).resolve().parent.parent
 CKPT = APP / "vendor" / "tts-eval2" / "checkpoints_v2"
 REFS = APP / "vendor" / "voices" / "refs"
 HOST, PORT = "127.0.0.1", int(sys.argv[1]) if len(sys.argv) > 1 else 8180
-torch.set_num_threads(int(os.environ.get("JARVIS_TTS_THREADS", "8")))
+torch.set_num_threads(int(os.environ.get("MICHEL_TTS_THREADS", "8")))
 
 from melo.api import TTS                      # noqa: E402  (slow imports after config)
 from openvoice.api import ToneColorConverter  # noqa: E402
@@ -39,7 +39,7 @@ def synth(voice, text, speed=1.0, tau=0.3):
     se = TGT_SE.get(voice)
     if se is None:
         raise ValueError(f"timbre inconnu : {voice}")
-    base = TMP / f"jarvis-ov-{threading.get_ident()}.wav"
+    base = TMP / f"michel-ov-{threading.get_ident()}.wav"
     with lock:
         t1 = time.time()
         melo.tts_to_file(text, SPK, str(base), speed=speed, quiet=True)

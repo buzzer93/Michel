@@ -1,6 +1,6 @@
 // Agent evaluation (plan step 4): replays evals/cases.json and writes a dated report to docs/evals/.
 // Run on the host, as the service account (it reads the gateway token):
-//   runuser -u jarvis -- env HOME=/var/lib/jarvis /opt/jarvis-node/bin/node /opt/jarvis/server/evals/run.mjs [--only R01,M03] [--skip-agents]
+//   runuser -u michel -- env HOME=/var/lib/michel /opt/michel-node/bin/node /opt/michel/server/evals/run.mjs [--only R01,M03] [--skip-agents]
 //     [--agent-map main=main_candidate] [--label candidat]   (improvement loop: replay Michel's cases on the candidate)
 // Each agent case runs in its own test session (agent:<id>:eval-<stamp>-<case>), so the voice conversations are not
 // touched; every approval request is refused, so no case can send a mail or restart a container.

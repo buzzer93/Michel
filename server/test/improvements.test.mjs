@@ -8,7 +8,7 @@ import { listImprovements, decideImprovement } from "../improvements.mjs";
 const LIVE = "# Identity\n\nOld rule.\n\n# Available agents (generated from agents/*/agent.json)\n\n- `planner`\n";
 
 function setup() {
-  const dir = mkdtempSync(join(tmpdir(), "jarvis-improve-"));
+  const dir = mkdtempSync(join(tmpdir(), "michel-improve-"));
   const live = join(dir, "AGENTS.md");
   writeFileSync(live, LIVE);
   writeFileSync(join(dir, "amelioration-1.json"), JSON.stringify({ id: "amelioration-1", status: "en attente", why: "déléguer les plans",

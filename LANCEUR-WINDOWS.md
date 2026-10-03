@@ -11,8 +11,6 @@ Les commandes directes sont **MICHEL-demarrer.cmd** et **MICHEL-arreter.cmd**.
 Pour recréer les raccourcis : clic droit sur `windows/Installer-raccourcis.ps1`, puis « Exécuter avec PowerShell ».
 
 Le lanceur utilise Windows PowerShell et WSL, déjà présents sur ce PC, sans installation supplémentaire.
-Il reconnaît les services actuels et ceux prévus après leur renommage en Michel.
-Le renommage technique reste distinct : il doit attendre la fin des évaluations actives, ou leur interruption autorisée.
 
 Pour vérifier l'état sans ouvrir de fenêtre :
 ```powershell

@@ -6,11 +6,11 @@ import secrets
 import shutil
 import subprocess
 
-app = Path('/opt/jarvis')
-state = Path('/var/lib/jarvis')
-account = pwd.getpwnam('jarvis')
+app = Path('/opt/michel')
+state = Path('/var/lib/michel')
+account = pwd.getpwnam('michel')
 if shutil.which('pkcheck') is None:
-    raise SystemExit('PolicyKit requis pour le bouton Arrêter Jarvis : installez policykit-1.')
+    raise SystemExit('PolicyKit requis pour le bouton Arrêter Michel : installez policykit-1.')
 
 def owned_write(path, content, mode=0o600):
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -82,10 +82,10 @@ def exec_of(agent_id):
 project_paths = ['server', 'web', 'tts', 'docs', 'deployment', 'systemd', 'bin', 'agents', 'README.md', 'INSTALLATION.md', 'UTILISATION.md',
                  'config/agents.example.json', 'config/settings.example.json', 'vendor/voices/voices.json']
 # Agents that run code (tests, git: a test file written by an agent is arbitrary code) do it in a Docker sandbox
-# (deployment/sandbox/Dockerfile): no network, read-only root, no capability, the jarvis uid, and none of the
+# (deployment/sandbox/Dockerfile): no network, read-only root, no capability, the michel uid, and none of the
 # gateway's environment, so no secret, no credential file and no Docker socket. The systemd bind mounts below
 # only exist in the gateway's namespace, so the sandbox gets the same project views as explicit binds.
-SANDBOX_IMAGE = 'jarvis-sandbox:node24'
+SANDBOX_IMAGE = 'michel-sandbox:node24'
 def sandbox_of(agent_id):
     spec = team[agent_id]
     if not spec.get('exec'):
@@ -99,7 +99,7 @@ def sandbox_of(agent_id):
     docker = {'image': SANDBOX_IMAGE, 'user': f'{account.pw_uid}:{account.pw_gid}', 'network': 'none', 'readOnlyRoot': True,
               'tmpfs': ['/tmp', '/var/tmp', '/run'], 'capDrop': ['ALL'], 'env': {'HOME': '/tmp'}, 'binds': binds}
     if binds:
-        # The project views come from outside the agent workspace (/opt/jarvis) and land under /agent: both are
+        # The project views come from outside the agent workspace (/opt/michel) and land under /agent: both are
         # refused by default. They are read-only code and docs (never config/, certs/ or .git); OpenClaw still
         # blocks system paths, credential folders and the Docker socket.
         docker.update(dangerouslyAllowExternalBindSources=True, dangerouslyAllowReservedContainerTargets=True)
@@ -215,9 +215,9 @@ def validate_config(text):
     candidate = config_path.with_name('openclaw.candidate.json')
     owned_write(candidate, text)
     try:
-        result = subprocess.run(['runuser', '-u', 'jarvis', '--', 'env', 'HOME=/var/lib/jarvis', 'PATH=/opt/jarvis-node/bin:/usr/bin:/bin',
-                                 f'OPENCLAW_CONFIG_PATH={candidate}', '/opt/jarvis-node/bin/node',
-                                 '/var/lib/jarvis/openclaw-runtime/node_modules/openclaw/openclaw.mjs', 'config', 'validate', '--json'],
+        result = subprocess.run(['runuser', '-u', 'michel', '--', 'env', 'HOME=/var/lib/michel', 'PATH=/opt/michel-node/bin:/usr/bin:/bin',
+                                 f'OPENCLAW_CONFIG_PATH={candidate}', '/opt/michel-node/bin/node',
+                                 '/var/lib/michel/openclaw-runtime/node_modules/openclaw/openclaw.mjs', 'config', 'validate', '--json'],
                                 capture_output=True, text=True)
     finally:
         candidate.unlink(missing_ok=True)
@@ -271,7 +271,7 @@ for agent_id, spec in team.items():
 # without fallback keep the default. Merged into the embedded runtime's per-agent settings file.
 for agent_id in ['main', CANDIDATE]:
     settings_file = state / f'.openclaw/agents/{agent_id}/agent/settings.json'
-    for folder in [settings_file.parent.parent, settings_file.parent]:   # created for jarvis, never left to root
+    for folder in [settings_file.parent.parent, settings_file.parent]:   # created for michel, never left to root
         if not folder.exists():
             folder.mkdir(mode=0o700)
             os.chown(folder, account.pw_uid, account.pw_gid)
@@ -290,16 +290,16 @@ for directory in [state / '.openclaw', workspace, *tool_workspaces, *map(workspa
 
 # The implementer works in its own clone (branch agents/implementer), never in the live repository.
 # It is created once from the last commit of the project and then left alone: the user reviews and merges.
-as_jarvis = ['runuser', '-u', 'jarvis', '--', 'env', 'HOME=/var/lib/jarvis']
+as_michel = ['runuser', '-u', 'michel', '--', 'env', 'HOME=/var/lib/michel']
 bind_mounts = []
 for agent_id, spec in team.items():
     project = workspace_of(agent_id) / 'project'
     if spec['project'] == 'clone':
         if not project.exists():
-            subprocess.run([*as_jarvis, 'git', 'clone', '--quiet', '--branch', 'main', str(app), str(project)], check=True)
-            subprocess.run([*as_jarvis, 'git', '-C', str(project), 'switch', '--quiet', '-c', 'agents/implementer'], check=True)
+            subprocess.run([*as_michel, 'git', 'clone', '--quiet', '--branch', 'main', str(app), str(project)], check=True)
+            subprocess.run([*as_michel, 'git', '-C', str(project), 'switch', '--quiet', '-c', 'agents/implementer'], check=True)
             for key, value in [('user.name', f'{spec["name"]} (OpenClaw)'), ('user.email', 'implementer@localhost')]:
-                subprocess.run([*as_jarvis, 'git', '-C', str(project), 'config', key, value], check=True)
+                subprocess.run([*as_michel, 'git', '-C', str(project), 'config', key, value], check=True)
     elif spec['project'] == 'read':
         for name in project_paths:
             source, target = app / name, project / name
@@ -332,13 +332,13 @@ for name in project_paths:
     bind_mounts.append(f'BindReadOnlyPaths={source}:{target}')
 for name in ['SOUL.md', 'AGENTS.md', 'IDENTITY.md', 'USER.md', 'MEMORY.md']:
     bind_mounts.append(f'BindReadOnlyPaths={candidate_ws / name}')
-subprocess.run(['chown', '-R', 'jarvis:jarvis', *[str(workspace_of(agent_id)) for agent_id in team], str(candidate_ws)], check=True)
+subprocess.run(['chown', '-R', 'michel:michel', *[str(workspace_of(agent_id)) for agent_id in team], str(candidate_ws)], check=True)
 
 hardening = '''
-User=jarvis
-Group=jarvis
-Environment=HOME=/var/lib/jarvis
-Environment=PATH=/opt/jarvis-node/bin:/opt/jarvis-ollama/bin:/usr/local/bin:/usr/bin:/bin
+User=michel
+Group=michel
+Environment=HOME=/var/lib/michel
+Environment=PATH=/opt/michel-node/bin:/opt/michel-ollama/bin:/usr/local/bin:/usr/bin:/bin
 Environment=LD_LIBRARY_PATH=/usr/local/cuda-12.8/lib64:/usr/lib/wsl/lib
 UMask=0077
 NoNewPrivileges=true
@@ -346,7 +346,7 @@ ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
 InaccessiblePaths=/mnt/c /mnt/d /mnt/f /mnt/g /media
-ReadWritePaths=/var/lib/jarvis /opt/jarvis/config /opt/jarvis/vendor/supertonic3 /opt/jarvis/web/avatars
+ReadWritePaths=/var/lib/michel /opt/michel/config /opt/michel/vendor/supertonic3 /opt/michel/web/avatars
 RestrictSUIDSGID=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
@@ -354,33 +354,33 @@ ProtectControlGroups=true
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
 '''
 unit_dir = Path('/etc/systemd/system')
-for name in ['jarvis-stt', 'jarvis-stt-precise', 'jarvis-tts', 'jarvis-tts-st', 'jarvis-web']:
-    content = (app / f'systemd/{name}.service').read_text().replace('@APP@', str(app)).replace('@NODE@', '/opt/jarvis-node/bin/node')
+for name in ['michel-stt', 'michel-stt-precise', 'michel-tts', 'michel-tts-st', 'michel-web']:
+    content = (app / f'systemd/{name}.service').read_text().replace('@APP@', str(app)).replace('@NODE@', '/opt/michel-node/bin/node')
     content = content.replace('[Service]', '[Service]\n' + hardening).replace('WantedBy=default.target', 'WantedBy=multi-user.target')
-    if name in ('jarvis-web', 'jarvis-tts'):
+    if name in ('michel-web', 'michel-tts'):
         # Optional OpenAI key for speech (settings sttEngine/ttsEngine "openai"): `OPENAI_API_KEY=…`, written by the
         # user (root, mode 600). Only these two services get it; without the file they stay fully local.
-        content = content.replace('[Service]\n', '[Service]\nEnvironmentFile=-/var/lib/jarvis/secrets/openai-voice.env\n', 1)
-    content = content.replace('Environment=LD_LIBRARY_PATH=/opt/jarvis/vendor/whisper.cpp/build/bin', 'Environment=LD_LIBRARY_PATH=/opt/jarvis/vendor/whisper.cpp/build/bin:/usr/local/cuda-12.8/lib64:/usr/lib/wsl/lib')
-    if name == 'jarvis-web':
-        content = content.replace('ReadWritePaths=/var/lib/jarvis /opt/jarvis/config /opt/jarvis/vendor/supertonic3 /opt/jarvis/web/avatars', 'ReadWritePaths=/var/lib/jarvis /opt/jarvis/config /opt/jarvis/vendor/supertonic3 /opt/jarvis/web/avatars /opt/jarvis/server /opt/jarvis/web /opt/jarvis/tts /opt/jarvis/docs')
+        content = content.replace('[Service]\n', '[Service]\nEnvironmentFile=-/var/lib/michel/secrets/openai-voice.env\n', 1)
+    content = content.replace('Environment=LD_LIBRARY_PATH=/opt/michel/vendor/whisper.cpp/build/bin', 'Environment=LD_LIBRARY_PATH=/opt/michel/vendor/whisper.cpp/build/bin:/usr/local/cuda-12.8/lib64:/usr/lib/wsl/lib')
+    if name == 'michel-web':
+        content = content.replace('ReadWritePaths=/var/lib/michel /opt/michel/config /opt/michel/vendor/supertonic3 /opt/michel/web/avatars', 'ReadWritePaths=/var/lib/michel /opt/michel/config /opt/michel/vendor/supertonic3 /opt/michel/web/avatars /opt/michel/server /opt/michel/web /opt/michel/tts /opt/michel/docs')
     (unit_dir / f'{name}.service').write_text(content)
 
-(unit_dir / 'jarvis-ollama.service').write_text('''[Unit]
+(unit_dir / 'michel-ollama.service').write_text('''[Unit]
 Description=Michel - modele local Ollama CUDA
 After=network.target
 [Service]
 ''' + hardening + '''
-WorkingDirectory=/var/lib/jarvis/ollama
+WorkingDirectory=/var/lib/michel/ollama
 Environment=OLLAMA_HOST=127.0.0.1:11434
-Environment=OLLAMA_MODELS=/var/lib/jarvis/ollama/models
+Environment=OLLAMA_MODELS=/var/lib/michel/ollama/models
 Environment=OLLAMA_NO_CLOUD=1
 Environment=OLLAMA_CONTEXT_LENGTH=16384
 Environment=OLLAMA_MAX_LOADED_MODELS=1
 Environment=OLLAMA_NUM_PARALLEL=1
 Environment=OLLAMA_FLASH_ATTENTION=1
 Environment=OLLAMA_KV_CACHE_TYPE=q8_0
-ExecStart=/opt/jarvis-ollama/bin/ollama serve
+ExecStart=/opt/michel-ollama/bin/ollama serve
 Restart=on-failure
 RestartSec=5
 [Install]
@@ -388,38 +388,38 @@ WantedBy=multi-user.target
 ''')
 gateway_unit = '''[Unit]
 Description=Michel - OpenClaw Gateway local
-After=network.target jarvis-ollama.service
-Wants=jarvis-ollama.service
+After=network.target michel-ollama.service
+Wants=michel-ollama.service
 [Service]
 ''' + hardening + '''
 SupplementaryGroups=docker
 # Without network, Claude Code (claude-cli: Écrit, Compile, Michel's second fallback) retried for minutes and Michel's
 # chain never reached the local Qwen (plan step 9, offline check). Two retries still absorb a passing overload.
 Environment=CLAUDE_CODE_MAX_RETRIES=2
-EnvironmentFile=-/var/lib/jarvis/secrets/agent-tools.env
-InaccessiblePaths=-/var/lib/jarvis/secrets
+EnvironmentFile=-/var/lib/michel/secrets/agent-tools.env
+InaccessiblePaths=-/var/lib/michel/secrets
 ''' + '\n'.join(bind_mounts) + '''
-WorkingDirectory=/var/lib/jarvis
-ExecStart=/opt/jarvis-node/bin/node /var/lib/jarvis/openclaw-runtime/node_modules/openclaw/openclaw.mjs gateway run
+WorkingDirectory=/var/lib/michel
+ExecStart=/opt/michel-node/bin/node /var/lib/michel/openclaw-runtime/node_modules/openclaw/openclaw.mjs gateway run
 Restart=on-failure
 RestartSec=5
 [Install]
 WantedBy=multi-user.target
 '''
 (unit_dir / 'openclaw-gateway.service').write_text(gateway_unit)
-(unit_dir / 'jarvis-dashboard-stop.service').write_text('''[Unit]
-Description=Arret complet de Jarvis demande depuis le dashboard
+(unit_dir / 'michel-dashboard-stop.service').write_text('''[Unit]
+Description=Arret complet de Michel demande depuis le dashboard
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/systemctl stop jarvis-stt jarvis-stt-precise jarvis-tts jarvis-tts-st jarvis-ollama openclaw-gateway jarvis-web
+ExecStart=/usr/bin/systemctl stop michel-stt michel-stt-precise michel-tts michel-tts-st michel-ollama openclaw-gateway michel-web
 ''')
 polkit_dir = Path('/etc/polkit-1/rules.d')
 polkit_dir.mkdir(parents=True, exist_ok=True)
-(polkit_dir / '50-jarvis-dashboard-stop.rules').write_text('''polkit.addRule(function(action, subject) {
+(polkit_dir / '50-michel-dashboard-stop.rules').write_text('''polkit.addRule(function(action, subject) {
     if (action.id === "org.freedesktop.systemd1.manage-units" &&
-        subject.user === "jarvis" &&
-        action.lookup("unit") === "jarvis-dashboard-stop.service" &&
+        subject.user === "michel" &&
+        action.lookup("unit") === "michel-dashboard-stop.service" &&
         action.lookup("verb") === "start") {
         return polkit.Result.YES;
     }
@@ -428,24 +428,24 @@ polkit_dir.mkdir(parents=True, exist_ok=True)
 # Weekly improvement loop (plan step 8): Saturday 06:00, after the plan's weekly quota reset (Saturday 05:00). A full
 # evaluation empties the 5 h window: no catch-up at boot (Persistent=false), a missed week is skipped rather than run
 # while the user works. The script itself gives
-# up while a proposal still waits for the user, when the quota is already high, or when Jarvis is stopped (it never
+# up while a proposal still waits for the user, when the quota is already high, or when Michel is stopped (it never
 # starts the gateway). Nothing it finds is applied without the user's click in the dashboard.
-(unit_dir / 'jarvis-improve.service').write_text('''[Unit]
+(unit_dir / 'michel-improve.service').write_text('''[Unit]
 Description=Michel - boucle d'amelioration (evaluation complete, puis une proposition si un cas echoue)
 After=openclaw-gateway.service
 
 [Service]
 Type=oneshot
-User=jarvis
-Group=jarvis
-Environment=HOME=/var/lib/jarvis
-WorkingDirectory=/opt/jarvis/server
-ExecStart=/opt/jarvis-node/bin/node /opt/jarvis/server/evals/improve.mjs --weekly
+User=michel
+Group=michel
+Environment=HOME=/var/lib/michel
+WorkingDirectory=/opt/michel/server
+ExecStart=/opt/michel-node/bin/node /opt/michel/server/evals/improve.mjs --weekly
 TimeoutStartSec=3h
 Nice=10
 NoNewPrivileges=true
 ''')
-(unit_dir / 'jarvis-improve.timer').write_text('''[Unit]
+(unit_dir / 'michel-improve.timer').write_text('''[Unit]
 Description=Michel - boucle d'amelioration hebdomadaire
 
 [Timer]
@@ -457,9 +457,9 @@ Persistent=false
 WantedBy=timers.target
 ''')
 subprocess.run(['systemctl', 'daemon-reload'], check=True)
-subprocess.run(['systemctl', 'enable', '--now', 'jarvis-improve.timer'], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+subprocess.run(['systemctl', 'enable', '--now', 'michel-improve.timer'], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 # The exec allowlist lives in OpenClaw's SQLite state, not in openclaw.json: write it as the service user.
-subprocess.run(['runuser', '-u', 'jarvis', '--', 'env', 'HOME=/var/lib/jarvis', 'PATH=/opt/jarvis-node/bin:/usr/bin:/bin',
-                '/opt/jarvis-node/bin/node', '/var/lib/jarvis/openclaw-runtime/node_modules/openclaw/openclaw.mjs', 'approvals', 'set', '--stdin'],
+subprocess.run(['runuser', '-u', 'michel', '--', 'env', 'HOME=/var/lib/michel', 'PATH=/opt/michel-node/bin:/usr/bin:/bin',
+                '/opt/michel-node/bin/node', '/var/lib/michel/openclaw-runtime/node_modules/openclaw/openclaw.mjs', 'approvals', 'set', '--stdin'],
                input=json.dumps(exec_approvals), text=True, check=True, stdout=subprocess.DEVNULL)
 print('Local configuration, exec allowlist and seven hardened services ready; secrets not displayed.')

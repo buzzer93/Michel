@@ -3,7 +3,7 @@
 import puppeteer from "puppeteer-core";
 import { mkdirSync, statSync } from "node:fs";
 
-const shots = "/tmp/jarvis-av"; mkdirSync(shots, { recursive: true });
+const shots = "/tmp/michel-av"; mkdirSync(shots, { recursive: true });
 const APP = new URL("../../", import.meta.url).pathname;
 const browser = await puppeteer.launch({ executablePath: "/usr/bin/google-chrome", headless: "new",
   args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--enable-unsafe-swiftshader", "--use-angle=swiftshader", "--no-sandbox", "--window-size=1440,900"] });

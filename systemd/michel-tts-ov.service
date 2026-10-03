@@ -2,7 +2,7 @@
 Description=Michel - synthese vocale MeloTTS + OpenVoice (timbres clones)
 
 [Service]
-Environment=JARVIS_TTS_THREADS=6
+Environment=MICHEL_TTS_THREADS=6
 WorkingDirectory=@APP@
 ExecStart=@APP@/.venv-openvoice/bin/python tts/openvoice_server.py 8180
 Restart=always

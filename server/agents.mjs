@@ -75,12 +75,12 @@ export function readTeamTaglines(file) {
 }
 
 /**
- * Resolve the roster. `env.JARVIS_AGENTS_FILE` points to an alternate file (a non-existent path
+ * Resolve the roster. `env.MICHEL_AGENTS_FILE` points to an alternate file (a non-existent path
  * forces discovery — handy to test the auto mode without touching the local config).
  * Returns { agents, source }.
  */
 export function loadAgents({ app, ocCfg, env = process.env, excludeIds = [] }) {
-  const local = env.JARVIS_AGENTS_FILE ?? join(app, "config/agents.json");
+  const local = env.MICHEL_AGENTS_FILE ?? join(app, "config/agents.json");
   const fromFile = readAgentsFile(local);
   if (fromFile?.length) return { agents: fromFile, source: local };
   const discovered = discoverAgents(ocCfg, { excludeIds });

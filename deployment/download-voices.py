@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import urllib.request
 
-root = Path('/opt/jarvis/vendor')
+root = Path('/opt/michel/vendor')
 
 def download(repo, remote, target):
     parent = remote.rsplit('/', 1)[0] if '/' in remote else ''

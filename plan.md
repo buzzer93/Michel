@@ -9,8 +9,8 @@ prompt ne remplace pas le code qui la fait respecter (§3, §5).
 - Une étape ou sous-étape **barrée** (~~ainsi~~) est **terminée et testée** ; la ligne « Fait le » donne la date et la preuve du test.
 - On reprend à la **première sous-étape non barrée**, dans l'ordre.
 - Chaque étape a un critère « **Fait quand** » : tant qu'il n'est pas vérifié, l'étape n'est pas barrée.
-- Déploiement : `wsl -d Ubuntu -u root -- python3 /opt/jarvis/deployment/configure-services.py` puis redémarrage des
-  services concernés (`openclaw-gateway`, `jarvis-web`, `jarvis-tts*`). L'interface se recharge avec Ctrl+F5.
+- Déploiement : `wsl -d Ubuntu -u root -- python3 /opt/michel/deployment/configure-services.py` puis redémarrage des
+  services concernés (`openclaw-gateway`, `michel-web`, `michel-tts*`). L'interface se recharge avec Ctrl+F5.
 - Tests : `cd server && node --test test/*.test.mjs` (application) ; les tests d'agents arrivent à l'étape 4.
 
 ## État de départ (1er octobre 2026)
@@ -44,7 +44,7 @@ modifié à la main survit à un déploiement ; le commit existe sur la branche 
 inchangée, sans fichier candidat résiduel ; une ligne ajoutée à `USER.md` survit à un vrai déploiement ;
 commit `a8c265b` sur `agentic-os`. Également : avatars source (`web/avatars/michels/`) et sauvegardes
 (`config/*.before-*`) ignorés. Restent hors commit, à décider par l'utilisateur (le dépôt deviendra public) :
-`dossier_agentic_os/`. À examiner : un dépôt git imbriqué `server/.git` (créé le 30/09 par le compte `jarvis`).
+`dossier_agentic_os/`. À examiner : un dépôt git imbriqué `server/.git` (créé le 30/09 par le compte `michel`).
 
 ## ~~Étape 1 — Isoler l'exécution de code des agents (§10)~~ ✅
 
@@ -64,9 +64,9 @@ OpenAI/ChatGPT (`openclaw.sqlite`), les identifiants Claude et GitHub, utiliser 
   Construit lancé par Michel exécute toujours `git -C project status`.
 - ~~1.4 Exécuter le code des agents (tests, git) dans un bac à sable sans secrets, sans socket Docker et sans réseau
   (sandbox OpenClaw si elle le permet ici, sinon un exécuteur dédié).~~
-  Fait le 2026-10-01 : sandbox Docker d'OpenClaw pour Construit et Vérifie (image `jarvis-sandbox:node24`,
+  Fait le 2026-10-01 : sandbox Docker d'OpenClaw pour Construit et Vérifie (image `michel-sandbox:node24`,
   `deployment/sandbox/Dockerfile` : Node 24, git, python3 ; réseau coupé, racine en lecture seule, aucune capacité,
-  uid de jarvis, aucune variable d'environnement de l'hôte). `exec.host: "sandbox"` (avec `gateway` les commandes
+  uid de michel, aucune variable d'environnement de l'hôte). `exec.host: "sandbox"` (avec `gateway` les commandes
   partaient sur l'hôte). Vérifie voit le projet par des montages en lecture seule déclarés au conteneur (les montages
   systemd n'existent que dans l'espace du gateway) ; dérogations `dangerouslyAllowExternalBindSources` et
   `dangerouslyAllowReservedContainerTargets` limitées à Vérifie ; son propre espace est monté en `rw` (en `ro`,
@@ -131,13 +131,13 @@ le push-to-talk. Principe : **mesurer avant de remplacer**, et garder le local e
   appel direct ; le mains-libres garde le prénom obligatoire (sinon toute conversation de la pièce partirait).
   Code fait et testé unitairement (32 tests verts) ; à vérifier en vrai après déploiement.
 - V.2 Une ligne `temps <agent>: transcription … · 1re phrase … · 1er son … · total …` par échange dans le journal de
-  `jarvis-web` : dit où part le temps (reconnaissance, modèle ou synthèse).
+  `michel-web` : dit où part le temps (reconnaissance, modèle ou synthèse).
 - V.3 Reconnaissance OpenAI (`sttEngine: "openai"`, `gpt-4o-transcribe`), Whisper local en repli.
 - V.4 Synthèse OpenAI (`ttsEngine: "openai"`, `gpt-4o-mini-tts`) : bloc `openai` par voix dans
   `vendor/voices/voices.json` (voix + ton, consigne « français natif ») ; Supertonic/Piper en repli. Vérifié hors ligne
   (voix OpenAI simulée, puis panne simulée → moteur local).
-- V.5 Clé `OPENAI_API_KEY` dans `/var/lib/jarvis/secrets/openai-voice.env` (root, 600), donnée seulement à `jarvis-web`
-  et `jarvis-tts` ; le gateway (donc les agents) ne la voit pas.
+- V.5 Clé `OPENAI_API_KEY` dans `/var/lib/michel/secrets/openai-voice.env` (root, 600), donnée seulement à `michel-web`
+  et `michel-tts` ; le gateway (donc les agents) ne la voit pas.
 - V.6 Mesure de référence en local (V.2) sur ~10 échanges, puis même mesure en OpenAI ; écoute des voix (accent).
 
 **Fait quand** : « quelle heure est-il ? » en push-to-talk, sans prénom, reçoit la réponse de Michel ; les temps local
@@ -186,7 +186,7 @@ Aucun test ne vérifie aujourd'hui le comportement des agents ; les bugs ont ét
 **Fait quand** : le script tourne de bout en bout et le rapport de référence est enregistré dans `docs/evals/`.
 
 **Fait le 2026-10-01.** Référence : [docs/evals/2026-10-01T17-50.md](docs/evals/2026-10-01T17-50.md), **39 / 40**.
-Lancement : `runuser -u jarvis -- env HOME=/var/lib/jarvis /opt/jarvis-node/bin/node /opt/jarvis/server/evals/run.mjs`
+Lancement : `runuser -u michel -- env HOME=/var/lib/michel /opt/michel-node/bin/node /opt/michel/server/evals/run.mjs`
 (`--only R01,M03`, `--skip-agents`). Le premier passage (39/40 aussi) a révélé un vrai bug masqué par un test trop
 indulgent : délégué par Michel, Écrit ne savait pas utiliser `gog` (un sous-agent ne reçoit que `AGENTS.md`, pas
 `SOUL.md`) → instructions des agents outils copiées dans leur `AGENTS.md`, test M04/M05 durci. Échec restant, gardé
@@ -221,12 +221,12 @@ web ») : aucune proposition créée (0 → 0), `USER.md` inchangé. Données de
 ## ~~Étape 6 — Traces et alertes (§11)~~ ✅
 
 - ~~6.1 Une trace par demande : agent, modèle réellement utilisé, délégations, outils, refus, durée, tokens.~~
-  Fait : `server/traces.mjs` (+ tests) ; une ligne JSON par demande vocale dans `/var/lib/jarvis/traces/AAAA-MM-JJ.jsonl`
-  (accès réservé à `jarvis`, conservée 30 jours) : demande, agent, modèle réellement utilisé, outils, délégations,
+  Fait : `server/traces.mjs` (+ tests) ; une ligne JSON par demande vocale dans `/var/lib/michel/traces/AAAA-MM-JJ.jsonl`
+  (accès réservé à `michel`, conservée 30 jours) : demande, agent, modèle réellement utilisé, outils, délégations,
   approbations (demandées / refusées d'office), durée, tokens de contexte. Lecture :
-  `wsl -d Ubuntu -u root -- tail -n 20 /var/lib/jarvis/traces/$(date +%F).jsonl`.
+  `wsl -d Ubuntu -u root -- tail -n 20 /var/lib/michel/traces/$(date +%F).jsonl`.
 - ~~6.2 Alertes dans le dashboard : quota > 85 %, refus de politique, tâche bloquée plus de 5 minutes, bascule de modèle.~~
-  Fait : notice « ⚠ … » dans le dashboard + ligne « alerte : » dans le journal de `jarvis-web`, une fois par 30 min et
+  Fait : notice « ⚠ … » dans le dashboard + ligne « alerte : » dans le journal de `michel-web`, une fois par 30 min et
   par cause ; vérifiées toutes les 20 s et à chaque rafraîchissement du quota. Seuils réglables dans `settings.json`
   (`alerts.quotaPercent`, `alerts.stuckMinutes`). Plafond de délégations et refus d'office alertent aussi.
 
@@ -268,16 +268,16 @@ Le système s'améliore par ses **consignes, procédures et outils** (pas par r�
 automatiquement : chaque changement est mesuré par les évaluations et validé par l'utilisateur. Dépend des étapes
 4 (évaluations), 5 (propositions validées) et 6 (traces).
 
-Une passe : `runuser -u jarvis -- env HOME=/var/lib/jarvis /opt/jarvis-node/bin/node /opt/jarvis/server/evals/improve.mjs`.
+Une passe : `runuser -u michel -- env HOME=/var/lib/michel /opt/michel-node/bin/node /opt/michel/server/evals/improve.mjs`.
 Première version volontairement étroite : seules les consignes de Michel (`agents/main/AGENTS.md`) peuvent changer.
 
 - ~~8.1 Observation : un rapport hebdomadaire des échecs, tiré des traces et des évaluations.~~
   Fait : `docs/evals/rapport-<date>.md` — échecs de la dernière évaluation de référence et résumé des traces des 7
   derniers jours (nombre, durées, modèle de secours, actions refusées ; jamais le texte des demandes).
-  Hebdomadaire : `jarvis-improve.timer`, le samedi vers 6 h (après la remise à zéro du quota de la semaine, samedi 5 h ;
+  Hebdomadaire : `michel-improve.timer`, le samedi vers 6 h (après la remise à zéro du quota de la semaine, samedi 5 h ;
   sautée si le PC est éteint : une évaluation complète vide la fenêtre de 5 h), lance
   `improve.mjs --weekly` : rien si une proposition attend déjà l'utilisateur, si le quota dépasse 50 % (75 % avant la
-  proposition) ou si Jarvis est arrêté ; sinon évaluation complète (nouvelle référence, pour ne pas « corriger » un
+  proposition) ou si Michel est arrêté ; sinon évaluation complète (nouvelle référence, pour ne pas « corriger » un
   échec déjà réglé), puis une proposition seulement s'il reste un échec. Les trois garde-fous testés le 2026-10-02.
   Limite : les propositions ne viennent que des cas d'évaluation, pas encore des ratés réels vus dans les traces.
 - ~~8.2 Proposition : Michel Organise analyse le rapport et propose des corrections précises (consigne, outil, réglage).~~
@@ -295,7 +295,7 @@ Première version volontairement étroite : seules les consignes de Michel (`age
 - ~~8.5 Validation : le dashboard présente le changement et le résultat des évaluations ; l'utilisateur fusionne ou refuse.~~
   Fait : panneau « Amélioration » (raison, scores avant/après, régressions, différence) avec **Appliquer / Refuser**.
   Appliquer réécrit sur place les consignes en service de Michel (liste des agents conservée) ; ensuite
-  `sudo env HOME=/var/lib/jarvis /opt/jarvis-node/bin/node /opt/jarvis/server/evals/improve.mjs --apply-repo <id>`
+  `sudo env HOME=/var/lib/michel /opt/michel-node/bin/node /opt/michel/server/evals/improve.mjs --apply-repo <id>`
   reporte la correction dans le dépôt, à relire et commiter (sinon le prochain déploiement l'écraserait).
 - ~~8.6 Surveillance et retour arrière : version publiée suivie dans les traces ; annulation par git si dégradation.~~
   Fait : chaque trace de Michel porte `instructions` (amélioration appliquée, ou `base`) ; bouton **Annuler** qui
@@ -344,6 +344,54 @@ ouverte prend-elle les nouvelles consignes sans « Nouvelle conversation » ?
 
 **Fait le 2026-10-03.** Documentation à jour ; évaluation 40 / 40 contre 39 / 40 ; bascule hors ligne corrigée et
 vérifiée ; push-to-talk sans parole vérifié. **Phase 1 (étapes 0 à 9) terminée** ; suite : phase 2 ci-dessous.
+
+---
+
+## Étape R — Renommage « jarvis » → « michel » (avant la phase 2)
+
+Demande de l'utilisateur : plus aucune trace de « jarvis » — fichiers, commandes, services, chemins, compte système.
+Le travail laissé par la session parallèle (étape V, lanceur Windows) est commité tel quel avant (`c112734`) pour que
+le renommage parte d'un arbre propre et s'annule seul. L'historique git garde l'ancien nom (non réécrit).
+
+Inventaire (2026-10-03) : 288 occurrences dans 41 fichiers du dépôt et 10 noms de fichiers ; hors dépôt : compte
+`jarvis` (UID 997), `/var/lib/jarvis` (4,8 Go : état OpenClaw, connexions ChatGPT et Claude, conversations, mémoire),
+`/opt/jarvis` (montage du dépôt), `/opt/jarvis-node`, `/opt/jarvis-ollama`, `/opt/jarvis-downloads`, 11 unités
+systemd, règle polkit, image Docker `jarvis-sandbox:node24`, clés du navigateur `jarvis.sfx` / `jarvis.handsfree`.
+Les bases SQLite d'OpenClaw contiennent ~1 500 chemins absolus, dont des clés actives : on suit la procédure
+officielle de déménagement d'OpenClaw (arrêt, `openclaw backup create --verify`, déplacement, `openclaw doctor`)
+plutôt que de réécrire les bases.
+
+- R.1 Dépôt : fichiers renommés (`bin/michel`, `systemd/michel-*.service`, `opt-michel.mount`…) et occurrences
+  (`jarvis`/`Jarvis`/`JARVIS` → `michel`/`Michel`/`MICHEL`) ; reprise des anciennes clés du navigateur ; tests verts.
+- R.2 Sauvegarde : services arrêtés ; sauvegarde OpenClaw vérifiée + archive complète de `/var/lib/jarvis`, des unités,
+  de la règle polkit et des comptes ; script de retour arrière prêt avant toute modification.
+- R.3 Système : compte `jarvis` → `michel` (même UID, donc mêmes propriétaires), `/var/lib/michel`,
+  `/opt/michel-node`, `/opt/michel-ollama`, `/opt/michel-downloads`, montage `/opt/michel`, environnement Python
+  corrigé, image Docker renommée, anciennes unités retirées, déploiement relancé, `openclaw doctor`.
+- R.4 Vérifications : sept services actifs, dashboard connecté, abonnement ChatGPT, Claude (Écrit), Qwen, mémoire,
+  rappels, bac à sable (Construit), cartes d'autorisation, quelques cas d'évaluation, lanceur Windows.
+- R.5 Plus aucune occurrence de « jarvis » (dépôt et système, hors historique git et sauvegardes) ; commit.
+
+**Fait quand** : tout fonctionne comme avant sous le nom « michel », et la recherche de « jarvis » ne trouve plus rien.
+
+Avancement (2026-10-03) :
+- ~~R.1~~ 10 fichiers renommés, ~290 occurrences remplacées, 41 / 41 tests. Effets connus : sessions vocales
+  `agent:<id>:michel` (l'historique repart de zéro, les anciennes sessions restent dans OpenClaw), clés du navigateur
+  `michel.*` (réglages remis par défaut), cookie de connexion changé (autres appareils : ressaisir le code).
+- ~~R.2~~ Sauvegarde vérifiée + archive complète (4,8 Go) et `rollback.sh` dans
+  `/var/backups/michel-rename-20261003-1558/`.
+- ~~R.3~~ Migration en 2 min 30 de coupure (`migrate.sh`). Corrigé ensuite : le plugin DuckDuckGo gardait l'ancien
+  chemin d'installation → réinstallé depuis le paquet officiel (statut « officiel de confiance ») ; la surcharge
+  `openclaw-gateway.service.d/para.conf` attendait encore l'ancien montage. `openclaw doctor --lint` : rien de
+  nouveau (avertissements déjà connus).
+- R.4 Sept services, dashboard (7 Michel, mémoire identique à l'octet près, fiche d'amélioration), lanceur Windows
+  (`Running`, `Gateway`), 27 cas d'évaluation (routage, Michel, Écrit, Compile, autorisations, sécurité, `SOUL.md`
+  protégé) **27 / 27**, hors ligne : Qwen répond en 20 s. Reste : Explore, Organise, Vérifie, Construit (bac à
+  sable) après la remise à zéro de la fenêtre ChatGPT de 5 h (20:03). Au passage : le bouton d'arrêt du dashboard
+  (utilisé pendant la vérification) ne journalisait pas la demande → ligne ajoutée.
+- R.5 Plus aucune occurrence dans le dépôt (hors cette section) ni dans `/etc`, `/opt`, `/var/lib`, les unités et
+  Docker ; seules restent les copies automatiques de Linux `/etc/passwd-`, `/etc/group-`, `/etc/shadow-`,
+  `/etc/gshadow-` (remplacées à la prochaine modification de compte).
 
 ---
 

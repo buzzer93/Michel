@@ -21,9 +21,9 @@ import soundfile as sf                  # noqa: E402
 import torch                            # noqa: E402
 from pocket_tts import TTSModel         # noqa: E402
 
-torch.set_num_threads(int(os.environ.get("JARVIS_TTS_THREADS", "6")))
+torch.set_num_threads(int(os.environ.get("MICHEL_TTS_THREADS", "6")))
 t0 = time.time()
-model = TTSModel.load_model(language=os.environ.get("JARVIS_POCKET_MODEL", "french"))
+model = TTSModel.load_model(language=os.environ.get("MICHEL_POCKET_MODEL", "french"))
 if not model.has_voice_cloning:
     print("[tts-pk] poids de clonage indisponibles (jeton HF / conditions non acceptées) — service inutilisable", flush=True)
     sys.exit(3)

@@ -158,7 +158,7 @@ test("délégations : agent visé par sessions_spawn, sous-agents encore actifs"
   const live = activeSubagents([
     { key: "agent:researcher:subagent:1f2e", hasActiveRun: true },
     { key: "agent:planner:subagent:9a8b", hasActiveRun: false },
-    { key: "agent:orchestrator:jarvis", hasActiveRun: true },
+    { key: "agent:orchestrator:michel", hasActiveRun: true },
     { key: "agent:fact_checker:subagent:77", sessionInfo: { hasActiveRun: true } },
   ]);
   assert.deepEqual([...live].sort(), ["fact_checker", "researcher"]);

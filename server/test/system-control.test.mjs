@@ -9,9 +9,9 @@ test("system deployment starts only the dedicated stop unit", () => {
   ]);
 });
 
-test("user deployment stops only its Jarvis units", () => {
+test("user deployment stops only its Michel units", () => {
   assert.deepEqual(stopAllCommand(false), [
     "systemctl",
-    ["--user", "--no-block", "stop", "jarvis-stt", "jarvis-stt-precise", "jarvis-tts", "jarvis-tts-st", "jarvis-web"],
+    ["--user", "--no-block", "stop", "michel-stt", "michel-stt-precise", "michel-tts", "michel-tts-st", "michel-web"],
   ]);
 });

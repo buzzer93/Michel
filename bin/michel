@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Michel control script. Usage: bin/jarvis <install|start|stop|restart|status|logs|code|url|certs|test|uninstall>
+# Michel control script. Usage: bin/michel <install|start|stop|restart|status|logs|code|url|certs|test|uninstall>
 set -euo pipefail
 APP="$(cd "$(dirname "$0")/.." && pwd)"
-UNITS=(jarvis-stt jarvis-stt-precise jarvis-tts jarvis-tts-st jarvis-web)
-SYSTEM_UNITS=(jarvis-stt jarvis-stt-precise jarvis-tts jarvis-tts-st jarvis-web jarvis-ollama openclaw-gateway)
+UNITS=(michel-stt michel-stt-precise michel-tts michel-tts-st michel-web)
+SYSTEM_UNITS=(michel-stt michel-stt-precise michel-tts michel-tts-st michel-web michel-ollama openclaw-gateway)
 UNIT_DIR="$HOME/.config/systemd/user"
 ip() { hostname -I | tr ' ' '\n' | grep -E '^[0-9]+\.' | head -1; }
-USER_WEB_STATE="$(systemctl --user show --property=LoadState --value jarvis-web 2>/dev/null || true)"
-SYSTEM_WEB_STATE="$(systemctl show --property=LoadState --value jarvis-web 2>/dev/null || true)"
+USER_WEB_STATE="$(systemctl --user show --property=LoadState --value michel-web 2>/dev/null || true)"
+SYSTEM_WEB_STATE="$(systemctl show --property=LoadState --value michel-web 2>/dev/null || true)"
 if [ "$USER_WEB_STATE" = loaded ]; then SYSTEMD_SCOPE=user
 elif [ "$SYSTEM_WEB_STATE" = loaded ]; then SYSTEMD_SCOPE=system
 else SYSTEMD_SCOPE=user
@@ -20,10 +20,10 @@ case "${1:-status}" in
     for u in "${UNITS[@]}"; do sed -e "s#@APP@#$APP#g" -e "s#@NODE@#$NODE#g" "$APP/systemd/$u.service" > "$UNIT_DIR/$u.service"; done
     systemctl --user daemon-reload
     systemctl --user enable --now "${UNITS[@]}"
-    if [ "${JARVIS_LOCAL_ONLY:-0}" != 1 ]; then
+    if [ "${MICHEL_LOCAL_ONLY:-0}" != 1 ]; then
       [ -f "$APP/certs/server.pem" ] || "$APP/bin/make-certs.sh"
     fi
-    systemctl --user restart jarvis-web
+    systemctl --user restart michel-web
     "$0" url ;;
   start|restart)
     if [ "$SYSTEMD_SCOPE" = system ]; then sudo systemctl "$1" "${SYSTEM_UNITS[@]}"
@@ -48,11 +48,11 @@ case "${1:-status}" in
   code) cat "$APP/config/access-code.txt" ;;
   url)
     echo "Sur ce PC      : http://localhost:8480"
-    if [ "${JARVIS_LOCAL_ONLY:-0}" != 1 ]; then
-      echo "Sur le réseau  : https://$(ip):8443   (voir bin/jarvis code)"
+    if [ "${MICHEL_LOCAL_ONLY:-0}" != 1 ]; then
+      echo "Sur le réseau  : https://$(ip):8443   (voir bin/michel code)"
       echo "Certificat CA  : https://$(ip):8443/ca.crt  (à importer une fois par appareil)"
     fi ;;
-  certs) "$APP/bin/make-certs.sh" && systemctl --user restart jarvis-web ;;
+  certs) "$APP/bin/make-certs.sh" && systemctl --user restart michel-web ;;
   test)
     cd "$APP/server"
     node --test test/*.test.mjs

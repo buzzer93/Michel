@@ -1,18 +1,18 @@
 // Improvement loop (plan step 8): observe → propose → apply on a branch → evaluate → the user decides.
 // Run on the host as the service account:
-//   runuser -u jarvis -- env HOME=/var/lib/jarvis /opt/jarvis-node/bin/node /opt/jarvis/server/evals/improve.mjs
+//   runuser -u michel -- env HOME=/var/lib/michel /opt/michel-node/bin/node /opt/michel/server/evals/improve.mjs
 // 1. Report: failures of the latest reference evaluation and a summary of the week's traces (no request text).
 // 2. Michel Organise proposes ONE precise change to Michel's instructions (agents/main/AGENTS.md only).
 // 3. Michel Construit applies it in his clone, on a fresh branch from the committed state, and commits.
 // 4. The hidden candidate (main_candidate) receives the changed instructions; the failed cases and a regression set are
 //    replayed on Michel and on the candidate.
-// 5. The record waits in /var/lib/jarvis/improvements/ for the user's decision in the dashboard (nothing is applied here).
-// Weekly (systemd jarvis-improve.timer, Saturday 06:00 after the weekly quota reset): --weekly does nothing while a
+// 5. The record waits in /var/lib/michel/improvements/ for the user's decision in the dashboard (nothing is applied here).
+// Weekly (systemd michel-improve.timer, Saturday 06:00 after the weekly quota reset): --weekly does nothing while a
 // record still waits for the user or when the plan quota is already high, and starts with a full evaluation so that
 // the report rests on a fresh reference (not on failures already fixed).
-// Afterwards, to make an applied change durable in the repository (the records are only readable by jarvis and root;
+// Afterwards, to make an applied change durable in the repository (the records are only readable by michel and root;
 // writing in place keeps the file's owner), then review and commit it:
-//   sudo env HOME=/var/lib/jarvis /opt/jarvis-node/bin/node /opt/jarvis/server/evals/improve.mjs --apply-repo <id>
+//   sudo env HOME=/var/lib/michel /opt/michel-node/bin/node /opt/michel/server/evals/improve.mjs --apply-repo <id>
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -82,7 +82,7 @@ try {
     new Promise((_, reject) => setTimeout(() => reject(new Error("délai de connexion")), 30000)),
   ]);
 } catch (e) {
-  say(`gateway injoignable (${e?.message}) : Jarvis est-il arrêté ? Rien de lancé`);
+  say(`gateway injoignable (${e?.message}) : Michel est-il arrêté ? Rien de lancé`);
   process.exit(weekly ? 0 : 1);
 }
 async function ask(agent, message, timeoutS = 300) {

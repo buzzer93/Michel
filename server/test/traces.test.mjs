@@ -16,7 +16,7 @@ test("trace : une ligne par demande, modèle réellement utilisé", () => {
   const t = traceRecord(run, { agentName: "Michel", usage, instructions: "amelioration-2026-10-02T13-20", now: NOW });
   assert.deepEqual([t.model, t.ms, t.delegations, t.tools, t.contextTokens, t.instructions],
     ["ollama/qwen3.5:4b", 4200, ["researcher"], ["sessions_spawn"], 900, "amelioration-2026-10-02T13-20"]);
-  const dir = mkdtempSync(join(tmpdir(), "jarvis-traces-"));
+  const dir = mkdtempSync(join(tmpdir(), "michel-traces-"));
   try {
     writeFileSync(join(dir, "2026-08-01.jsonl"), "{}\n");          // older than 30 days: pruned
     writeFileSync(join(dir, "notes.txt"), "kept");                  // not a trace file: kept

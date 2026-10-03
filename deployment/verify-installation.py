@@ -5,8 +5,8 @@ import re
 import subprocess
 import urllib.request
 
-services = ['jarvis-ollama', 'openclaw-gateway', 'jarvis-stt', 'jarvis-stt-precise', 'jarvis-tts', 'jarvis-tts-st', 'jarvis-web']
-result = {'services': {}, 'health': {}, 'isolation': {}, 'projectPaths': {'linux': '/home/buzzer93/code/perso/openclaw-vocal-assistants', 'windows': 'F:/PARA/01_Projets/code/perso/openclaw-vocal-assistants', 'runtimeCompatibility': '/opt/jarvis (bind mount of Linux project)'}}
+services = ['michel-ollama', 'openclaw-gateway', 'michel-stt', 'michel-stt-precise', 'michel-tts', 'michel-tts-st', 'michel-web']
+result = {'services': {}, 'health': {}, 'isolation': {}, 'projectPaths': {'linux': '/home/buzzer93/code/perso/openclaw-vocal-assistants', 'windows': 'F:/PARA/01_Projets/code/perso/openclaw-vocal-assistants', 'runtimeCompatibility': '/opt/michel (bind mount of Linux project)'}}
 for name in services:
     active = subprocess.check_output(['systemctl', 'is-active', name], text=True).strip()
     result['services'][name] = active
@@ -17,12 +17,12 @@ for port, endpoint in [(8480, 'healthz'), (8178, 'health'), (8188, 'health'), (8
         result['health'][str(port)] = json.load(response)
 assert result['health']['8480']['gateway'] is True
 
-code_path = Path('/opt/jarvis/config/access-code.txt')
+code_path = Path('/opt/michel/config/access-code.txt')
 code = code_path.read_text().strip()
 assert re.fullmatch('[0-9a-f]{64}', code)
 assert code_path.stat().st_mode & 0o777 == 0o600
 result['accessCode'] = {'bits': 256, 'permissions': '0600', 'value': 'not exported'}
-config_path = Path('/var/lib/jarvis/.openclaw/openclaw.json')
+config_path = Path('/var/lib/michel/.openclaw/openclaw.json')
 config = json.loads(config_path.read_text())
 assert config_path.stat().st_mode & 0o777 == 0o600
 # Michel (main) holds his team's tools so that delegated runs keep them (a child is capped by its requester).
@@ -52,23 +52,23 @@ for line in subprocess.check_output(['ss', '-H', '-ltn'], text=True).splitlines(
         listeners.append(address)
 result['listeners'] = listeners
 
-for name in ['jarvis-web', 'openclaw-gateway']:
+for name in ['michel-web', 'openclaw-gateway']:
     process_id = subprocess.check_output(['systemctl', 'show', name, '-p', 'MainPID', '--value'], text=True).strip()
-    probe = subprocess.run(['nsenter', '-t', process_id, '-m', '--', 'runuser', '-u', 'jarvis', '--', 'test', '-x', '/mnt/c/Users'], capture_output=True)
+    probe = subprocess.run(['nsenter', '-t', process_id, '-m', '--', 'runuser', '-u', 'michel', '--', 'test', '-x', '/mnt/c/Users'], capture_output=True)
     assert probe.returncode == 1, name
     result['isolation'][name] = 'Windows drive access blocked'
 
-cache = Path('/opt/jarvis/vendor/whisper.cpp/build/CMakeCache.txt').read_text()
+cache = Path('/opt/michel/vendor/whisper.cpp/build/CMakeCache.txt').read_text()
 assert 'GGML_CUDA:BOOL=1' in cache
-for name in ['jarvis-stt', 'jarvis-stt-precise']:
+for name in ['michel-stt', 'michel-stt-precise']:
     logs = subprocess.check_output(['journalctl', '-u', name, '-b', '--no-pager'], text=True)
     assert 'NVIDIA GeForce RTX 4070' in logs, name
 result['whisperBackend'] = 'CUDA, RTX 4070, architecture 89'
-result['ollamaGpu'] = subprocess.check_output(['/opt/jarvis-ollama/bin/ollama', 'ps'], text=True).strip()
-result['diskUsage'] = subprocess.check_output(['du', '-sh', '/opt/jarvis', '/var/lib/jarvis', '/opt/jarvis-node', '/opt/jarvis-ollama'], text=True).strip()
+result['ollamaGpu'] = subprocess.check_output(['/opt/michel-ollama/bin/ollama', 'ps'], text=True).strip()
+result['diskUsage'] = subprocess.check_output(['du', '-sh', '/opt/michel', '/var/lib/michel', '/opt/michel-node', '/opt/michel-ollama'], text=True).strip()
 for mode in ['typed', 'spoken']:
-    path = Path(f'/var/lib/jarvis/verification/{mode}-result.json')
+    path = Path(f'/var/lib/michel/verification/{mode}-result.json')
     result[f'{mode}Conversation'] = json.loads(path.read_text())
-target = Path('/var/lib/jarvis/verification/installation-result.json')
+target = Path('/var/lib/michel/verification/installation-result.json')
 target.write_text(json.dumps(result, indent=2, ensure_ascii=False))
 print(json.dumps(result, indent=2, ensure_ascii=False))

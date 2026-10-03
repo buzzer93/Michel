@@ -1,0 +1,12 @@
+[Unit]
+Description=MICHEL compatibility path from the PARA code project
+Before=michel-web.service michel-stt.service michel-stt-precise.service michel-tts.service michel-tts-st.service
+
+[Mount]
+What=/home/buzzer93/code/perso/openclaw-vocal-assistants
+Where=/opt/michel
+Type=none
+Options=bind
+
+[Install]
+WantedBy=multi-user.target

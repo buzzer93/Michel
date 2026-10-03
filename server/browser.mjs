@@ -3,7 +3,7 @@
 // including those that forbid embedding (GitHub, Google…), and never exposes the user's own cookies.
 import { createHash } from "node:crypto";
 
-const CHROME = process.env.JARVIS_CHROME ?? "/usr/bin/google-chrome";
+const CHROME = process.env.MICHEL_CHROME ?? "/usr/bin/google-chrome";
 const VIEW = { width: 1024, height: 680 };
 const FRAME_MS = 450;
 const IDLE_CLOSE_MS = 5 * 60 * 1000;

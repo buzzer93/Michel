@@ -84,7 +84,7 @@ def voice_for(agent_id, requested=None):
 
 
 # settings.json "ttsEngine": "openai" → OpenAI's speech API for every voice that has an "openai" block in the
-# catalogue (key in OPENAI_API_KEY, from /var/lib/jarvis/secrets/openai-voice.env); the local engine of the voice
+# catalogue (key in OPENAI_API_KEY, from /var/lib/michel/secrets/openai-voice.env); the local engine of the voice
 # takes over whenever OpenAI fails. "local" (default): nothing leaves the machine.
 _settings_file = next((f for f in (APP / "config" / "settings.json", APP / "config" / "settings.example.json") if f.exists()), None)
 SETTINGS = json.loads(_settings_file.read_text()) if _settings_file else {}
@@ -181,8 +181,8 @@ def synth_kokoro(v, text, slow):
     return np.clip(audio * 32767, -32768, 32767).astype(np.float32), 24000
 
 
-SIDECARS = {"openvoice": os.environ.get("JARVIS_OV_URL", "http://127.0.0.1:8180"), "pockettts": os.environ.get("JARVIS_PK_URL", "http://127.0.0.1:8181"),
-            "supertonic": os.environ.get("JARVIS_ST_URL", "http://127.0.0.1:8182")}
+SIDECARS = {"openvoice": os.environ.get("MICHEL_OV_URL", "http://127.0.0.1:8180"), "pockettts": os.environ.get("MICHEL_PK_URL", "http://127.0.0.1:8181"),
+            "supertonic": os.environ.get("MICHEL_ST_URL", "http://127.0.0.1:8182")}
 
 
 def synth_sidecar(engine, v, text, slow):

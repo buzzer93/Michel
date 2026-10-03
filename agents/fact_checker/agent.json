@@ -10,6 +10,6 @@
   "reviews": "implementer",
   "tools": ["read", "exec", "web_fetch"],
   "exec": [
-    { "pattern": "/opt/jarvis-node/bin/node", "argPattern": "^(?!.*\\.\\.)--test( (project|implementer-work)/[\\w./*-]+)+$" }
+    { "pattern": "/opt/michel-node/bin/node", "argPattern": "^(?!.*\\.\\.)--test( (project|implementer-work)/[\\w./*-]+)+$" }
   ]
 }

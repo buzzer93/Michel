@@ -57,24 +57,24 @@ test("les agents découverts sont routables par le prénom", () => {
 });
 
 test("loadAgents : fichier local, sinon openclaw.json, sinon l'exemple", () => {
-  const dir = mkdtempSync(join(tmpdir(), "jarvis-agents-"));
+  const dir = mkdtempSync(join(tmpdir(), "michel-agents-"));
   try {
     const file = join(dir, "agents.json");
     writeFileSync(file, JSON.stringify({ agents: [{ id: "x", name: "Xavier" }] }));
-    assert.equal(loadAgents({ app: APP, ocCfg, env: { JARVIS_AGENTS_FILE: file } }).agents[0].name, "Xavier");
-    const auto = loadAgents({ app: APP, ocCfg, env: { JARVIS_AGENTS_FILE: join(dir, "absent.json") } });
+    assert.equal(loadAgents({ app: APP, ocCfg, env: { MICHEL_AGENTS_FILE: file } }).agents[0].name, "Xavier");
+    const auto = loadAgents({ app: APP, ocCfg, env: { MICHEL_AGENTS_FILE: join(dir, "absent.json") } });
     assert.equal(auto.source, "openclaw.json"); assert.equal(auto.agents.length, 4);
-    const ex = loadAgents({ app: APP, ocCfg: {}, env: { JARVIS_AGENTS_FILE: join(dir, "absent.json") } });
+    const ex = loadAgents({ app: APP, ocCfg: {}, env: { MICHEL_AGENTS_FILE: join(dir, "absent.json") } });
     assert.equal(ex.source, "config/agents.example.json"); assert.ok(ex.agents.length >= 1);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test("rôle affiché : sous-titre des agents vocaux et des spécialistes de l'équipe", () => {
-  const dir = mkdtempSync(join(tmpdir(), "jarvis-team-"));
+  const dir = mkdtempSync(join(tmpdir(), "michel-team-"));
   try {
     const file = join(dir, "agents.json");
     writeFileSync(file, JSON.stringify({ agents: [{ id: "dev", name: "Michel Compile", tagline: "GitHub & Docker" }], team: [{ id: "implementer", name: "Michel Construit", tagline: "modifie le code" }, { id: "planner" }] }));
-    assert.equal(loadAgents({ app: APP, ocCfg, env: { JARVIS_AGENTS_FILE: file } }).agents[0].tagline, "GitHub & Docker");
+    assert.equal(loadAgents({ app: APP, ocCfg, env: { MICHEL_AGENTS_FILE: file } }).agents[0].tagline, "GitHub & Docker");
     assert.deepEqual([...readTeamTaglines(file)], [["implementer", "modifie le code"]]); // no tagline: left out
     assert.equal(normalizeAgent({ id: "x" }).tagline, null);
     assert.equal(readTeamTaglines(join(dir, "absent.json")).size, 0);
