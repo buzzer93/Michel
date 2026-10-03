@@ -2,6 +2,7 @@
 // the local Whisper server (STT) and the local Piper service (TTS).
 import { createServer as createHttps } from "node:https";
 import { createServer as createHttp } from "node:http";
+import { spawn } from "node:child_process";
 import { readFileSync, existsSync, statSync, createReadStream, writeFileSync, mkdirSync, copyFileSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, normalize as normPath, extname, dirname } from "node:path";
@@ -20,6 +21,7 @@ import { approvalView, forbiddenReason, resolveMethod } from "./approvals.mjs";
 import { memoryStore } from "./memory.mjs";
 import { listImprovements, decideImprovement } from "./improvements.mjs";
 import { traceRecord, appendTrace, alertsFor, alertGate } from "./traces.mjs";
+import { SYSTEM_STOP_UNIT_FILE, stopAllCommand } from "./system-control.mjs";
 
 const APP = join(dirname(fileURLToPath(import.meta.url)), "..");
 const WEB = join(APP, "web");
@@ -96,8 +98,9 @@ const agentOfSession = (key) => {
 };
 const lastClientFor = new Map(); // agentId → client that spoke to it last (owner of replies we did not ask for)
 
-function newRun(agentId, clientId, runId) {
-  const run = { runId, agentId, clientId, stream: new ReplyStream(), startedAt: Date.now(), toolCount: 0, sayChain: Promise.resolve(), muted: false, lastDetail: "", allowWindow: false, seen: false };
+function newRun(agentId, clientId, runId, sttMs = null) {
+  // sttMs / firstSentenceAt / firstAudioAt: where the time of a voice exchange goes (logged by finishRun).
+  const run = { runId, agentId, clientId, stream: new ReplyStream(), startedAt: Date.now(), toolCount: 0, sayChain: Promise.resolve(), muted: false, lastDetail: "", allowWindow: false, seen: false, sttMs, firstSentenceAt: null, firstAudioAt: null };
   runs.set(runId, run);
   agentState.get(agentId).runs++;
   return run;
@@ -358,6 +361,9 @@ function finishRun(runId, run) {
   st.runs = Math.max(0, st.runs - 1);
   // Status returns to idle once the last sentence has been handed to the client (see speak()).
   run.sayChain.then(() => {
+    // Always logged: answers "is it slow, and where?" (speech recognition, model, or speech synthesis).
+    const since = (t) => (t ? `+${t - run.startedAt} ms` : "—");
+    log(`temps ${run.agentId}: transcription ${run.sttMs ?? "—"} ms · 1re phrase ${since(run.firstSentenceAt)} · 1er son ${since(run.firstAudioAt)} · total ${Date.now() - run.startedAt} ms`);
     if (st.runs === 0 && st.status !== "speaking") setStatus(run.agentId, "idle");
     broadcast({ t: "done", id: run.agentId, runId, tools: run.toolCount, ms: Date.now() - run.startedAt });
     refreshUsage().then(() => writeTrace(run));
@@ -369,8 +375,11 @@ let saySeq = 0;
 function speak(run, sentences) {
   for (const sentence of sentences) {
     const seq = ++saySeq;
+    const first = !run.firstSentenceAt;
+    if (first) run.firstSentenceAt = Date.now();
     // Synthesis starts immediately (parallel), delivery stays ordered through the chain.
     const audio = synth(run.agentId, sentence).catch((e) => { log("tts error:", e.message); return null; });
+    if (first) audio.then((wav) => { if (wav) run.firstAudioAt = Date.now(); });
     run.sayChain = run.sayChain.then(async () => {
       if (run.muted) return;
       const wav = await audio;
@@ -395,27 +404,50 @@ async function synth(agentId, text) {
 // settings.sttPrompt is set explicitly.
 const sttPrompt = settings.sttPrompt ?? buildSttPrompt(agentsCfg);
 debug("sttPrompt:", sttPrompt);
-async function transcribe(wav) {
+// settings.sttEngine "openai": OpenAI's transcription API first (key in OPENAI_API_KEY, given to the service
+// by /var/lib/jarvis/secrets/openai-voice.env), the local Whisper servers as fallback when it fails or is
+// unreachable. "local" (default): Whisper only, nothing leaves the machine.
+const OPENAI_STT_URL = "https://api.openai.com/v1/audio/transcriptions";
+const useOpenaiStt = settings.sttEngine === "openai" && Boolean(process.env.OPENAI_API_KEY);
+if (settings.sttEngine === "openai" && !useOpenaiStt) log("stt: sttEngine=openai mais OPENAI_API_KEY absente → Whisper local");
+
+function sttForm(wav, extra = {}) {
   const form = new FormData();
   form.append("file", new Blob([wav], { type: "audio/wav" }), "utt.wav");
   form.append("language", "fr");
   form.append("response_format", "json");
   form.append("temperature", "0.0");
   if (sttPrompt) form.append("prompt", sttPrompt);
+  for (const [key, value] of Object.entries(extra)) form.append(key, value);
+  return form;
+}
+
+/** → { text, ms, engine } */
+async function transcribe(wav) {
   const t0 = Date.now();
+  const audioMs = ((wav.length - 44) / 32000) * 1000;
+  const attempts = [];
+  if (useOpenaiStt) attempts.push(["openai", () => fetch(OPENAI_STT_URL, {
+    method: "POST", headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+    body: sttForm(wav, { model: settings.openaiSttModel ?? "gpt-4o-transcribe" }), signal: AbortSignal.timeout(15000),
+  })]);
   // Two Whisper servers share the GPU: a fast small model for short utterances ("stop", a bare
   // name) where reaction time matters, a precise one for real sentences where accuracy matters.
-  const audioMs = ((wav.length - 44) / 32000) * 1000;
   const urls = audioMs <= settings.sttFastMaxMs ? [settings.sttFastUrl, settings.sttUrl] : [settings.sttUrl, settings.sttFastUrl];
+  for (const url of urls) attempts.push([`whisper:${url.slice(-4)}`, () => fetch(`${url}/inference`, { method: "POST", body: sttForm(wav), signal: AbortSignal.timeout(30000) })]);
   let lastError;
-  for (const url of urls) {
+  for (const [engine, attempt] of attempts) {
     try {
-      const res = await fetch(`${url}/inference`, { method: "POST", body: form, signal: AbortSignal.timeout(30000) });
+      const res = await attempt();
       if (!res.ok) throw new Error(`STT HTTP ${res.status}`);
       const text = ((await res.json()).text ?? "").replace(/\s+/g, " ").trim();
-      debug(`stt ${Math.round(audioMs)} ms audio → ${Date.now() - t0} ms (${url.slice(-4)}):`, text);
-      return text;
-    } catch (e) { lastError = e; }
+      const ms = Date.now() - t0;
+      debug(`stt ${Math.round(audioMs)} ms audio → ${ms} ms (${engine}):`, text);
+      return { text, ms, engine };
+    } catch (e) {
+      lastError = e;
+      log(`stt ${engine} a échoué (${e.message})${engine === "openai" ? " → Whisper local" : ""}`);
+    }
   }
   throw new Error(`STT indisponible: ${lastError?.message}`);
 }
@@ -424,13 +456,18 @@ async function transcribe(wav) {
 const clients = new Map(); // clientId → { ws, activeAgent, followUpUntil, speaking, spokenText }
 const browserWins = new BrowserWindows({ send: (id, msg, bin) => send(id, msg, bin), log });
 
-async function handleUtterance(client, text, { typed = false } = {}) {
+/** Agent that receives a push-to-talk utterance without a name: the team lead (Michel), who routes. */
+const routerAgent = () => (agentState.has(teamLead()) ? teamLead() : agentsCfg[0].id);
+
+async function handleUtterance(client, text, { typed = false, ptt = false, sttMs = null } = {}) {
+  // Push-to-talk and the keyboard are addressed on purpose: no name needed. Hands-free (VAD) still needs one.
+  const directTo = ptt ? routerAgent() : typed ? client.activeAgent ?? routerAgent() : null;
   const decision = route(text, {
-    agents: agentsCfg, activeAgent: client.activeAgent, followUpUntil: typed ? Infinity : client.followUpUntil,
-    speaking: typed ? false : client.speaking, spokenText: client.spokenText,
+    agents: agentsCfg, activeAgent: client.activeAgent, followUpUntil: client.followUpUntil,
+    speaking: client.speaking, spokenText: client.spokenText, directTo,
   });
   // Always logged (not only in debug): the only way to diagnose "it ignored me" reports afterwards.
-  log(`entendu${typed ? " (clavier)" : ""}: « ${text} » → ${decision.kind}${decision.agentId ? " " + decision.agentId : ""}${decision.reason ? " (" + decision.reason + ")" : ""}`);
+  log(`entendu${typed ? " (clavier)" : ptt ? " (push-to-talk)" : ""}: « ${text} » → ${decision.kind}${decision.agentId ? " " + decision.agentId : ""}${decision.reason ? " (" + decision.reason + ")" : ""}`);
   send(client.id, { t: "heard", text, kind: decision.kind, id: decision.agentId ?? null, reason: decision.reason, active: client.activeAgent });
 
   if (decision.kind === "stop") return stopSpeech(client, decision.agentId);
@@ -440,7 +477,7 @@ async function handleUtterance(client, text, { typed = false } = {}) {
   if (client.activeAgent !== decision.agentId) wake(client, decision.agentId, false);
   if (client.speaking) stopSpeech(client); // talking over the agent = barge-in
   client.followUpUntil = Date.now() + settings.followUpMs;
-  await sendToAgent(client, decision.agentId, decision.text);
+  await sendToAgent(client, decision.agentId, decision.text, sttMs);
 }
 
 function wake(client, agentId, acknowledge) {
@@ -480,13 +517,13 @@ async function sendHistory(client, agentId) {
   }
 }
 
-async function sendToAgent(client, agentId, text) {
+async function sendToAgent(client, agentId, text, sttMs = null) {
   if (!gatewayUp) return send(client.id, { t: "notice", id: agentId, level: "error", text: "Gateway OpenClaw injoignable" });
   const runId = `jarvis-${randomUUID()}`;
   const allowWindow = wantsWindow(text);
   lastClientFor.set(agentId, client.id);
   delegationCount.set(agentId, 0); // a new user request: a fresh delegation budget
-  const run = newRun(agentId, client.id, runId);
+  const run = newRun(agentId, client.id, runId, sttMs);
   run.allowWindow = allowWindow;
   run.request = text;
   setStatus(agentId, "thinking");
@@ -664,6 +701,8 @@ function onBrowser(ws) {
   ws.send(JSON.stringify({
     t: "hello", link: gatewayUp, followUpMs: settings.followUpMs, team, teamLead: lead, approvals: [...pendingApprovals.values()], branch: ocCfg.agents?.entries?.[lead]?.subagents?.allowAgents ?? [],
     user: { name: settings.userName, avatar: avatarUrl(USER_KEY), hasDefault: hasDefaultAvatar(USER_KEY) },
+    // Where the voice is processed, shown at the bottom of the page (both services read the same key).
+    speech: { stt: useOpenaiStt ? "openai" : "local", tts: settings.ttsEngine === "openai" && process.env.OPENAI_API_KEY ? "openai" : "local" },
     agents: agentsCfg.map((a) => {
       const st = agentState.get(a.id);
       return { id: a.id, name: a.name, tagline: a.tagline, color: a.color, glyph: a.glyph, avatar: avatarUrl(avatarKey(a.id)), hasDefault: hasDefaultAvatar(avatarKey(a.id)), status: st.status, tool: st.tool, busyElsewhere: st.external > 0 };
@@ -677,10 +716,11 @@ function onBrowser(ws) {
     try {
       if (isBinary) {
         if (!client.pendingUtt) return;
+        const ptt = client.pendingUtt.ptt === true;
         client.pendingUtt = null;
         if (data.length > 16000 * 2 * 45) return; // > 45 s: not an utterance
-        const text = await transcribe(data);
-        if (text) await handleUtterance(client, text);
+        const { text, ms: sttMs } = await transcribe(data);
+        if (text) await handleUtterance(client, text, { ptt, sttMs });
         else send(client.id, { t: "heard", text: "", kind: "ignored", reason: "inaudible" });
         return;
       }
@@ -770,6 +810,24 @@ function handler(req, res) {
   }
   if (url.pathname === "/ca.crt") return serveFile(res, join(APP, "certs/rootCA.pem"), { "content-disposition": 'attachment; filename="jarvis-ca.crt"' });
   if (url.pathname === "/healthz") { res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ ok: true, gateway: gatewayUp })); return; }
+  if (url.pathname === "/api/stop-all" && req.method === "POST") {
+    if (!hasSession(req)) { res.writeHead(401).end(); return; }
+    if (!req.headers.origin || !sameOrigin(req)) { res.writeHead(403).end(); return; }
+    const systemManaged = process.env.HOME === "/var/lib/jarvis";
+    const systemStopConfigured = existsSync(SYSTEM_STOP_UNIT_FILE);
+    if (systemManaged && !systemStopConfigured) {
+      res.writeHead(503, { "content-type": "application/json" }).end('{"error":"reconfigurez les services système"}');
+      return;
+    }
+    const [command, args] = stopAllCommand(systemManaged);
+    res.writeHead(202, { "content-type": "application/json", "cache-control": "no-store" }).end('{"ok":true}');
+    res.once("finish", () => {
+      const child = spawn(command, args, { stdio: "ignore" });
+      child.once("error", (error) => log("arrêt demandé impossible:", error.message));
+      child.once("close", (code) => { if (code !== 0) log("arrêt demandé refusé, systemctl:", code); });
+    });
+    return;
+  }
   const publicFiles = ["/login.html", "/login.js", "/styles.css", "/manifest.webmanifest", "/icon.svg"];
   if (!hasSession(req) && !publicFiles.includes(url.pathname)) { res.writeHead(302, { location: "/login.html" }).end(); return; }
   if (url.pathname === "/api/avatar") {

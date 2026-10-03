@@ -1,5 +1,5 @@
 {
-  "_doc": "Copier en config/settings.json (ignoré par git) et adapter. userName : prénom de l'utilisateur, utilisé dans le brief envoyé aux agents et pour la phrase de réveil (vide = neutre). sttPrompt (facultatif) : amorce Whisper ; par défaut elle est générée à partir de la liste des agents sous forme de phrases d'exemple complètes (« <Prénom>, quelle heure est-il ? Stop. … ») — une liste nue de prénoms fait halluciner Whisper, garder des phrases entières si vous la remplacez.",
+  "_doc": "Copier en config/settings.json (ignoré par git) et adapter. userName : prénom de l'utilisateur, utilisé dans le brief envoyé aux agents et pour la phrase de réveil (vide = neutre). sttPrompt (facultatif) : amorce Whisper ; par défaut elle est générée à partir de la liste des agents sous forme de phrases d'exemple complètes (« <Prénom>, quelle heure est-il ? Stop. … ») — une liste nue de prénoms fait halluciner Whisper, garder des phrases entières si vous la remplacez. sttEngine / ttsEngine : \"local\" (défaut, rien ne quitte la machine) ou \"openai\" (API OpenAI facturée à l'usage, clé OPENAI_API_KEY dans /var/lib/jarvis/secrets/openai-voice.env ; le moteur local prend le relais en cas d'échec). openaiSttModel / openaiTtsModel : modèles OpenAI (défauts gpt-4o-transcribe et gpt-4o-mini-tts).",
   "bind": "0.0.0.0",
   "httpsPort": 8443,
   "httpPort": 8480,
@@ -7,6 +7,8 @@
   "sttFastUrl": "http://127.0.0.1:8178",
   "sttFastMaxMs": 1600,
   "ttsUrl": "http://127.0.0.1:8179",
+  "sttEngine": "local",
+  "ttsEngine": "local",
   "sessionSuffix": "jarvis",
   "userName": "",
   "followUpMs": 120000,

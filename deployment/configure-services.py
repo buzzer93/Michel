@@ -3,11 +3,14 @@ import os
 from pathlib import Path
 import pwd
 import secrets
+import shutil
 import subprocess
 
 app = Path('/opt/jarvis')
 state = Path('/var/lib/jarvis')
 account = pwd.getpwnam('jarvis')
+if shutil.which('pkcheck') is None:
+    raise SystemExit('PolicyKit requis pour le bouton Arrêter Jarvis : installez policykit-1.')
 
 def owned_write(path, content, mode=0o600):
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -354,6 +357,10 @@ unit_dir = Path('/etc/systemd/system')
 for name in ['jarvis-stt', 'jarvis-stt-precise', 'jarvis-tts', 'jarvis-tts-st', 'jarvis-web']:
     content = (app / f'systemd/{name}.service').read_text().replace('@APP@', str(app)).replace('@NODE@', '/opt/jarvis-node/bin/node')
     content = content.replace('[Service]', '[Service]\n' + hardening).replace('WantedBy=default.target', 'WantedBy=multi-user.target')
+    if name in ('jarvis-web', 'jarvis-tts'):
+        # Optional OpenAI key for speech (settings sttEngine/ttsEngine "openai"): `OPENAI_API_KEY=…`, written by the
+        # user (root, mode 600). Only these two services get it; without the file they stay fully local.
+        content = content.replace('[Service]\n', '[Service]\nEnvironmentFile=-/var/lib/jarvis/secrets/openai-voice.env\n', 1)
     content = content.replace('Environment=LD_LIBRARY_PATH=/opt/jarvis/vendor/whisper.cpp/build/bin', 'Environment=LD_LIBRARY_PATH=/opt/jarvis/vendor/whisper.cpp/build/bin:/usr/local/cuda-12.8/lib64:/usr/lib/wsl/lib')
     if name == 'jarvis-web':
         content = content.replace('ReadWritePaths=/var/lib/jarvis /opt/jarvis/config /opt/jarvis/vendor/supertonic3 /opt/jarvis/web/avatars', 'ReadWritePaths=/var/lib/jarvis /opt/jarvis/config /opt/jarvis/vendor/supertonic3 /opt/jarvis/web/avatars /opt/jarvis/server /opt/jarvis/web /opt/jarvis/tts /opt/jarvis/docs')
@@ -400,6 +407,24 @@ RestartSec=5
 WantedBy=multi-user.target
 '''
 (unit_dir / 'openclaw-gateway.service').write_text(gateway_unit)
+(unit_dir / 'jarvis-dashboard-stop.service').write_text('''[Unit]
+Description=Arret complet de Jarvis demande depuis le dashboard
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl stop jarvis-stt jarvis-stt-precise jarvis-tts jarvis-tts-st jarvis-ollama openclaw-gateway jarvis-web
+''')
+polkit_dir = Path('/etc/polkit-1/rules.d')
+polkit_dir.mkdir(parents=True, exist_ok=True)
+(polkit_dir / '50-jarvis-dashboard-stop.rules').write_text('''polkit.addRule(function(action, subject) {
+    if (action.id === "org.freedesktop.systemd1.manage-units" &&
+        subject.user === "jarvis" &&
+        action.lookup("unit") === "jarvis-dashboard-stop.service" &&
+        action.lookup("verb") === "start") {
+        return polkit.Result.YES;
+    }
+});
+''')
 # Weekly improvement loop (plan step 8): Saturday 06:00, after the plan's weekly quota reset (Saturday 05:00). A full
 # evaluation empties the 5 h window: no catch-up at boot (Persistent=false), a missed week is skipped rather than run
 # while the user works. The script itself gives

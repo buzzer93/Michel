@@ -122,6 +122,28 @@ carte `gog gmail send --to … --subject "Test approbation Michel (refus)" --bod
 approuvé : la boîte d'envoi contient exactement un « (accord) » et aucun « (refus) ». Compile : carte
 `docker restart watchless-web` refusée, conteneur non redémarré (heure de démarrage inchangée). 31 tests verts.
 
+## Étape V — Voix : Michel répartit, et reconnaissance / synthèse OpenAI en option
+
+Constat de l'utilisateur : il comprend mal, c'est lent, la voix sonne mal ; et devoir dire le prénom est inutile avec
+le push-to-talk. Principe : **mesurer avant de remplacer**, et garder le local en secours (pas de voix sans Internet sinon).
+
+- V.1 Push-to-talk et clavier sans prénom → Michel (`directTo` dans `route()`), qui répartit ; un prénom dit reste un
+  appel direct ; le mains-libres garde le prénom obligatoire (sinon toute conversation de la pièce partirait).
+  Code fait et testé unitairement (32 tests verts) ; à vérifier en vrai après déploiement.
+- V.2 Une ligne `temps <agent>: transcription … · 1re phrase … · 1er son … · total …` par échange dans le journal de
+  `jarvis-web` : dit où part le temps (reconnaissance, modèle ou synthèse).
+- V.3 Reconnaissance OpenAI (`sttEngine: "openai"`, `gpt-4o-transcribe`), Whisper local en repli.
+- V.4 Synthèse OpenAI (`ttsEngine: "openai"`, `gpt-4o-mini-tts`) : bloc `openai` par voix dans
+  `vendor/voices/voices.json` (voix + ton, consigne « français natif ») ; Supertonic/Piper en repli. Vérifié hors ligne
+  (voix OpenAI simulée, puis panne simulée → moteur local).
+- V.5 Clé `OPENAI_API_KEY` dans `/var/lib/jarvis/secrets/openai-voice.env` (root, 600), donnée seulement à `jarvis-web`
+  et `jarvis-tts` ; le gateway (donc les agents) ne la voit pas.
+- V.6 Mesure de référence en local (V.2) sur ~10 échanges, puis même mesure en OpenAI ; écoute des voix (accent).
+
+**Fait quand** : « quelle heure est-il ? » en push-to-talk, sans prénom, reçoit la réponse de Michel ; les temps local
+et OpenAI sont notés ici ; l'utilisateur a choisi à l'écoute le moteur de synthèse ; une coupure d'Internet laisse la
+voix fonctionner en local.
+
 ## ~~Étape 3 — Contexte court et délégation sobre (§8, §13)~~ ✅
 
 Chaque échange vocal envoie ~46 000 tokens (toute la conversation depuis la veille) : lenteur et quota consommé.

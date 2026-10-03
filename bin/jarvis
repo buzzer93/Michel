@@ -3,8 +3,15 @@
 set -euo pipefail
 APP="$(cd "$(dirname "$0")/.." && pwd)"
 UNITS=(jarvis-stt jarvis-stt-precise jarvis-tts jarvis-tts-st jarvis-web)
+SYSTEM_UNITS=(jarvis-stt jarvis-stt-precise jarvis-tts jarvis-tts-st jarvis-web jarvis-ollama openclaw-gateway)
 UNIT_DIR="$HOME/.config/systemd/user"
 ip() { hostname -I | tr ' ' '\n' | grep -E '^[0-9]+\.' | head -1; }
+USER_WEB_STATE="$(systemctl --user show --property=LoadState --value jarvis-web 2>/dev/null || true)"
+SYSTEM_WEB_STATE="$(systemctl show --property=LoadState --value jarvis-web 2>/dev/null || true)"
+if [ "$USER_WEB_STATE" = loaded ]; then SYSTEMD_SCOPE=user
+elif [ "$SYSTEM_WEB_STATE" = loaded ]; then SYSTEMD_SCOPE=system
+else SYSTEMD_SCOPE=user
+fi
 
 case "${1:-status}" in
   install)
@@ -18,9 +25,24 @@ case "${1:-status}" in
     fi
     systemctl --user restart jarvis-web
     "$0" url ;;
-  start|stop|restart) systemctl --user "$1" "${UNITS[@]}" ;;
+  start|restart)
+    if [ "$SYSTEMD_SCOPE" = system ]; then sudo systemctl "$1" "${SYSTEM_UNITS[@]}"
+    else systemctl --user "$1" "${UNITS[@]}"; fi ;;
+  stop)
+    if [ "$SYSTEMD_SCOPE" = system ]; then sudo systemctl stop "${SYSTEM_UNITS[@]}"
+    else
+      for u in "${UNITS[@]}"; do
+        if [ "$(systemctl --user show --property=LoadState --value "$u" 2>/dev/null || true)" = loaded ]; then
+          systemctl --user stop "$u"
+        fi
+      done
+    fi ;;
   status)
-    for u in "${UNITS[@]}"; do printf '%-20s %s\n' "$u" "$(systemctl --user is-active "$u" || true)"; done
+    if [ "$SYSTEMD_SCOPE" = system ]; then
+      for u in "${SYSTEM_UNITS[@]}"; do printf '%-20s %s\n' "$u" "$(systemctl is-active "$u" || true)"; done
+    else
+      for u in "${UNITS[@]}"; do printf '%-20s %s\n' "$u" "$(systemctl --user is-active "$u" || true)"; done
+    fi
     curl -fsS "http://127.0.0.1:8480/healthz" 2>/dev/null && echo || echo "serveur web injoignable" ;;
   logs) journalctl --user -f -o cat $(printf -- '-u %s ' "${UNITS[@]}") ;;
   code) cat "$APP/config/access-code.txt" ;;

@@ -71,11 +71,13 @@ export function echoScore(heard, spoken) {
 }
 
 /**
- * ctx: { agents, activeAgent, followUpUntil, now, speaking, spokenText }
+ * ctx: { agents, activeAgent, followUpUntil, now, speaking, spokenText, directTo }
+ * `directTo`: agent id when the user addressed the app on purpose (push-to-talk, keyboard). The utterance
+ * then needs no name: without one it goes to `directTo` (Michel, who routes), and it may talk over an agent.
  * → { kind: "stop" | "cancel" | "wake" | "message" | "ignored", agentId?, text?, reason? }
  */
 export function route(text, ctx) {
-  const { agents, activeAgent, followUpUntil = 0, now = Date.now(), speaking = false, spokenText = "" } = ctx;
+  const { agents, activeAgent, followUpUntil = 0, now = Date.now(), speaking = false, spokenText = "", directTo = null } = ctx;
   if (isHallucination(text)) return { kind: "ignored", reason: "bruit" };
   const tokens = normalize(text).split(" ").filter(Boolean);
   const call = findCall(text, agents);
@@ -84,15 +86,17 @@ export function route(text, ctx) {
   if (tokens.length <= 4 && core.length <= 2 && core.some((t) => STOP_WORDS.has(t))) return { kind: "stop", agentId: call?.agentId };
   if (tokens.length <= 5 && core.length <= 3 && core.some((t) => CANCEL_WORDS.has(t))) return { kind: "cancel", agentId: call?.agentId ?? activeAgent };
 
-  // While an agent is talking the mic hears the speakers: only explicit calls get through.
-  if (speaking && !call) return { kind: "ignored", reason: echoScore(text, spokenText) > 0.5 ? "écho" : "agent en train de parler" };
-  if (speaking && call && echoScore(text, spokenText) > 0.6) return { kind: "ignored", reason: "écho" };
+  // While an agent is talking the mic hears the speakers: only explicit calls get through. A direct
+  // utterance is the user on purpose (talking over the agent), never an echo.
+  if (speaking && !directTo && !call) return { kind: "ignored", reason: echoScore(text, spokenText) > 0.5 ? "écho" : "agent en train de parler" };
+  if (speaking && !directTo && call && echoScore(text, spokenText) > 0.6) return { kind: "ignored", reason: "écho" };
 
   if (call) {
     const restCore = normalize(call.rest).split(" ").filter((t) => t && !FILLERS.has(t));
     if (restCore.length === 0) return { kind: "wake", agentId: call.agentId };
     return { kind: "message", agentId: call.agentId, text: call.rest };
   }
+  if (directTo) return core.length ? { kind: "message", agentId: directTo, text: text.trim() } : { kind: "ignored", reason: "rien à transmettre" };
   if (activeAgent && now < followUpUntil) return { kind: "message", agentId: activeAgent, text: text.trim(), followUp: true };
   return { kind: "ignored", reason: "aucun agent appelé" };
 }

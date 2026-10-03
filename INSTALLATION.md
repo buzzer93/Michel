@@ -90,14 +90,17 @@ Si un pare-feu est actif sur la machine hôte : `sudo ufw allow from 192.168.1.0
 
 | Commande | Effet |
 |---|---|
-| `bin/jarvis status` | état des 4 services + liaison Gateway |
+| `bin/jarvis status` | état des services gérés + liaison Gateway |
 | `bin/jarvis start` / `stop` / `restart` | pilotage des services |
+| Icône d’alimentation du dashboard | arrêt de tous les services Jarvis, après confirmation |
 | `bin/jarvis logs` | journaux en direct |
 | `bin/jarvis url` | adresses d'accès |
 | `bin/jarvis code` | code d'accès (pour en changer : supprimer `config/access-code.txt` puis `bin/jarvis restart`) |
 | `bin/jarvis certs` | régénérer le certificat HTTPS |
 | `bin/jarvis test` | tests unitaires + bout en bout + scénario multi-agents |
 | `bin/jarvis uninstall` | retirer les services (les fichiers restent) |
+
+Pour un déploiement système WSL, `bin/jarvis` détecte les unités sous `/etc/systemd/system` et utilise `sudo` pour les piloter. Le bouton d’arrêt du dashboard est configuré par `deployment/configure-services.py` ; après une mise à jour, relancez ce script en root puis `bin/jarvis restart`.
 
 ## 6. Configuration
 

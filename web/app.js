@@ -144,7 +144,8 @@ async function startMic() {
   refreshState();
 }
 
-function sendUtterance(f32) {
+/** `ptt`: recorded with push-to-talk, so the server routes it without requiring an agent's name. */
+function sendUtterance(f32, ptt = false) {
   if (!ws || ws.readyState !== 1) return liveCaption(false);
   const pcm = new DataView(new ArrayBuffer(44 + f32.length * 2));
   const str = (o, s) => [...s].forEach((c, i) => pcm.setUint8(o + i, c.charCodeAt(0)));
@@ -152,7 +153,7 @@ function sendUtterance(f32) {
   pcm.setUint16(20, 1, true); pcm.setUint16(22, 1, true); pcm.setUint32(24, 16000, true); pcm.setUint32(28, 32000, true);
   pcm.setUint16(32, 2, true); pcm.setUint16(34, 16, true); str(36, "data"); pcm.setUint32(40, f32.length * 2, true);
   for (let i = 0; i < f32.length; i++) pcm.setInt16(44 + i * 2, Math.max(-1, Math.min(1, f32[i])) * 0x7fff, true);
-  send({ t: "utt", ms: Math.round(f32.length / 16) });
+  send({ t: "utt", ms: Math.round(f32.length / 16), ptt });
   ws.send(pcm.buffer);
 }
 
@@ -225,7 +226,7 @@ async function pttEnd() {
   const voiced = voicedFrames(pcm);
   report(`push-to-talk : ${ms} ms, ${voiced} trames de voix${voiced < PTT_MIN_VOICED_FRAMES ? " (ignoré)" : ""}`);
   if (voiced < PTT_MIN_VOICED_FRAMES) return liveCaption(false); // pressed without speaking
-  sendUtterance(pcm);
+  sendUtterance(pcm, true);
 }
 
 addEventListener("mousedown", (e) => { if (e.button === PTT_BUTTON) { e.preventDefault(); pttStart(); } });
@@ -382,7 +383,11 @@ function connect() {
       case "hello":
         linkUp = m.link; agents.clear(); m.agents.forEach((a) => agents.set(a.id, a));
         user = m.user ?? user;
-        if (m.agents[0]) $("typebox").placeholder = `${m.agents[0].name}, …`;
+        // No name needed with the keyboard or push-to-talk: without one, the team lead receives the message.
+        $("typebox").placeholder = "Votre message…";
+        if (m.speech) $("bottom-note").textContent = m.speech.stt === "openai" || m.speech.tts === "openai"
+          ? `Reconnaissance ${m.speech.stt === "openai" ? "OpenAI" : "locale"} · synthèse ${m.speech.tts === "openai" ? "OpenAI" : "locale"} (repli local)`
+          : "Reconnaissance et synthèse vocales locales";
         crew.setAgents(m.agents); syncAvatarManager();
         if (active && agents.has(active)) { const id = active; active = null; setActive(id, false); }
         // Org chart: the head of the team first, every agent he delegates to on a branch under him —
@@ -455,6 +460,23 @@ const toggleType = (show) => { const bar = $("typebar"); bar.hidden = show === u
 
 $("btn-mic").onclick = toggleMic;
 $("btn-stop").onclick = stopAll;
+$("btn-shutdown").onclick = () => $("shutdown-dialog").showModal();
+$("shutdown-confirm").onclick = async () => {
+  const button = $("shutdown-confirm");
+  button.disabled = true;
+  try {
+    await pauseMic();
+    hush();
+    const response = await fetch("/api/stop-all", { method: "POST", headers: { "content-type": "application/json" } });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    $("shutdown-dialog").close();
+    toast("Arrêt de Jarvis demandé");
+  } catch {
+    toast("Impossible d’arrêter Jarvis", "error");
+  } finally {
+    button.disabled = false;
+  }
+};
 $("btn-type").onclick = () => toggleType();
 $("btn-avatars").onclick = () => avatarManager.open();
 const newConversation = () => send({ t: "conversation.new", id: active ?? lastAgent ?? "main" });

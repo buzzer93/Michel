@@ -11,6 +11,8 @@ Engines, chosen per voice in vendor/voices/voices.json:
   - "openvoice": MeloTTS + OpenVoice v2 sidecar (:8180) — cloned timbres, RTF ~0.9.
   - "kokoro":    Kokoro-82M in-process (only ff_siwis is native French).
   - "piper":     Piper (ONNX) — instant, less natural. Always the fallback when a sidecar is down or fails.
+Optional, over all of them: OpenAI's speech API when settings.json has "ttsEngine": "openai" (block "openai" of
+each voice: built-in voice + tone instructions); the voice's local engine takes over on any failure.
 Before any engine: pronunciation lexicon, then numbers/times/dates/amounts/units in words (fr_normalize.py).
 Post-processing shared by all: pitch/timbre shift, optional "robot" treatment, fades.
 Bound to loopback only: the Node server is the single client.
@@ -80,6 +82,18 @@ def voice_for(agent_id, requested=None):
             AGENT_VOICE[agent_id] = assign_voices(known + [{"id": agent_id}])[agent_id]
         return AGENT_VOICE[agent_id]
 
+
+# settings.json "ttsEngine": "openai" → OpenAI's speech API for every voice that has an "openai" block in the
+# catalogue (key in OPENAI_API_KEY, from /var/lib/jarvis/secrets/openai-voice.env); the local engine of the voice
+# takes over whenever OpenAI fails. "local" (default): nothing leaves the machine.
+_settings_file = next((f for f in (APP / "config" / "settings.json", APP / "config" / "settings.example.json") if f.exists()), None)
+SETTINGS = json.loads(_settings_file.read_text()) if _settings_file else {}
+OPENAI_KEY = os.environ.get("OPENAI_API_KEY", "")
+USE_OPENAI = SETTINGS.get("ttsEngine") == "openai" and bool(OPENAI_KEY)
+OPENAI_TTS_MODEL = SETTINGS.get("openaiTtsModel", "gpt-4o-mini-tts")
+OPENAI_COMMON = _voices_doc.get("_meta", {}).get("openai_instructions", "")
+if SETTINGS.get("ttsEngine") == "openai" and not OPENAI_KEY:
+    print("[tts] ttsEngine=openai mais OPENAI_API_KEY absente → moteurs locaux", flush=True)
 
 lexicon_file = next((f for f in (APP / "config" / "pronunciation.json", APP / "config" / "pronunciation.example.json") if f.exists()), None)
 LEXICON = [(re.compile(rf"(?<![\w-]){re.escape(k)}(?![\w-])", re.I), v)
@@ -182,14 +196,37 @@ def synth_sidecar(engine, v, text, slow):
     return np.frombuffer(frames, dtype=np.int16).astype(np.float32), rate
 
 
+def synth_openai(o, text):
+    """OpenAI speech API → raw 16-bit PCM, 24 kHz mono (`pcm` format: no WAV header to trust)."""
+    import urllib.request
+    instructions = " ".join(filter(None, [OPENAI_COMMON, o.get("instructions")]))
+    body = json.dumps({"model": OPENAI_TTS_MODEL, "voice": o["voice"], "input": text, "instructions": instructions, "response_format": "pcm"}).encode()
+    req = urllib.request.Request("https://api.openai.com/v1/audio/speech", body, {"content-type": "application/json", "authorization": f"Bearer {OPENAI_KEY}"})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        data = r.read()
+    if len(data) < 2400:
+        raise RuntimeError("openai: audio vide")
+    return np.frombuffer(data[: len(data) // 2 * 2], dtype="<i2").astype(np.float32), 24000
+
+
 def render(voice_key, text, base_key=None):
     """voice_key = catalogue id, or a private variant (`_<id>_<engine>`, `_tmp`) whose sidecar timbre is base_key."""
     v = voices_cfg[voice_key]
     pitch = float(v.get("pitch") or 1.0)
+    tempo = float(v.get("tempo") or 1.0)
     engine = v.get("engine", "piper")
+    remote = False
+    if USE_OPENAI and "openai" in v and voice_key != "_tmp":  # `_tmp` = the safe Piper replay: stays local
+        try:
+            pcm, rate = synth_openai(v["openai"], text)
+            remote, pitch, tempo = True, 1.0, 1.0  # distinct OpenAI voices already: no timbre shift, no stretching
+        except Exception as e:  # noqa: BLE001
+            print(f"[tts] openai a échoué ({e}) → {engine}", flush=True)
     # Pitch/timbre shift = play the audio `pitch` times faster. Synthesising `pitch` times slower
     # first keeps the speaking rate unchanged, so only the voice character moves.
-    if engine in SIDECARS:
+    if remote:
+        pass
+    elif engine in SIDECARS:
         try:
             pcm, rate = synth_sidecar(engine, {**v[engine], "_key": base_key or voice_key}, text, pitch)
         except Exception as e:  # noqa: BLE001
@@ -208,9 +245,8 @@ def render(voice_key, text, base_key=None):
         pcm = np.clip(resample_poly(pcm, ratio.numerator, ratio.denominator), -32768, 32767).astype(np.float32)
     # Common cadence: every voice is stretched (pitch preserved) to the same letters-per-second rate,
     # because cloned models speak at the pace of their reference clip and vary from one run to the next.
-    tempo = float(v.get("tempo") or 1.0)
     n_letters = len(re.findall(r"[^\W\d_]", text))
-    if CADENCE and n_letters >= CADENCE.get("min_letters", 12) and len(pcm) > rate * 0.3:
+    if CADENCE and not remote and n_letters >= CADENCE.get("min_letters", 12) and len(pcm) > rate * 0.3:
         tempo *= CADENCE["target_letters_per_sec"] / (n_letters / (len(pcm) / rate))  # > 1 when the voice is slower than the target
         lo, hi = CADENCE.get("clamp", [0.8, 1.35]); tempo = min(hi, max(lo, tempo))
     if abs(tempo - 1.0) > 0.03:  # phase vocoder; > 1 = faster
@@ -241,7 +277,7 @@ def synth(agent_id, text, engine=None, voice=None):
     if engine in ("piper", "kokoro", "openvoice", "pockettts", "supertonic") and engine != voices_cfg[key].get("engine"):  # explicit override (tests, A/B)
         voices_cfg[f"_{key}_{engine}"] = {**voices_cfg[key], "engine": engine}
         key = f"_{key}_{engine}"
-    ck = (key, text, voices_cfg[key].get("engine"))
+    ck = (key, text, voices_cfg[key].get("engine"), USE_OPENAI)
     if len(text) <= 48:
         with _cache_lock:
             if ck in _cache:
@@ -271,7 +307,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200 if self.path == "/healthz" else 404)
         self.send_header("content-type", "application/json")
         self.end_headers()
-        self.wfile.write(json.dumps({"ok": True, "voices": VOICE_IDS, "agents": AGENT_VOICE, "piper": list(_models), "kokoro": _kokoro["pipe"] is not None, "kokoroError": _kokoro["error"]}).encode())
+        self.wfile.write(json.dumps({"ok": True, "voices": VOICE_IDS, "agents": AGENT_VOICE, "piper": list(_models), "kokoro": _kokoro["pipe"] is not None, "kokoroError": _kokoro["error"], "openai": USE_OPENAI}).encode())
 
     def do_POST(self):
         if self.path != "/tts":

@@ -297,6 +297,15 @@ body.mic-on #btn-mic { opacity: 1; background: linear-gradient(135deg, color-mix
 body:not(.mic-on) #btn-mic { color: var(--alert); }
 #btn-stop { display: none; }
 body[data-state="speaking"] #btn-stop { display: grid; opacity: 1; color: var(--alert); }
+#btn-shutdown { color: var(--alert); opacity: .9; }
+#shutdown-dialog { width: min(380px, calc(100vw - 32px)); padding: 22px; border: 1px solid color-mix(in srgb, var(--alert) 55%, transparent); border-radius: 8px; background: #100f1b; color: var(--ink); box-shadow: 0 18px 60px rgba(0, 0, 0, .65); }
+#shutdown-dialog::backdrop { background: rgba(0, 0, 0, .72); backdrop-filter: blur(4px); }
+#shutdown-dialog h2 { margin: 0 0 10px; color: var(--alert); font-size: 16px; font-weight: 500; }
+#shutdown-dialog p { margin: 0 0 20px; color: var(--dim); font-size: 13px; line-height: 1.5; }
+.shutdown-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.shutdown-actions button { min-height: 38px; padding: 0 14px; border: 1px solid rgba(255, 255, 255, .16); border-radius: 6px; color: var(--ink); }
+#shutdown-confirm { border-color: color-mix(in srgb, var(--alert) 65%, transparent); background: color-mix(in srgb, var(--alert) 18%, transparent); color: var(--alert); }
+#shutdown-dialog button:disabled { opacity: .5; }
 
 #typebar { position: fixed; z-index: 6; left: 50%; bottom: calc(78px + var(--safe-b)); transform: translateX(-50%); width: min(560px, 90vw); }
 #typebox { width: 100%; padding: 12px 18px; border-radius: 99px; border: 1px solid rgba(139, 92, 246, .5); background: var(--glass); color: var(--ink); font: 300 16px var(--font); outline: none; box-shadow: 0 0 24px rgba(139, 92, 246, .2); backdrop-filter: blur(12px); user-select: text; }
@@ -462,6 +471,8 @@ body[data-state="speaking"] #btn-stop { display: grid; opacity: 1; color: var(--
   body.has-detail #controls { margin-bottom: 8px; }
 }
 @media (max-width: 480px) {
+  #controls { gap: 6px; padding: 6px 8px; }
+  .ctl { width: 38px; height: 38px; }
   #crew { gap: 0; padding-left: 4px; padding-right: 4px; }
   .crew-node { padding: 6px 3px; width: calc((100vw - 8px) / 7); min-width: 0; }
   .crew-node .ring { width: 36px; height: 36px; }

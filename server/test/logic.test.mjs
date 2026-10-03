@@ -35,6 +35,23 @@ test("sans prénom : ignoré, sauf fenêtre de suivi", () => {
   assert.equal(route("Et pour demain ?", ctx({ activeAgent: "eva", followUpUntil: 500 })).kind, "ignored");
 });
 
+test("push-to-talk : sans prénom, le message va au chef d'équipe", () => {
+  const direct = (o = {}) => ctx({ directTo: "main", ...o });
+  assert.deepEqual(route("Il faudrait penser à acheter du pain.", direct()), { kind: "message", agentId: "main", text: "Il faudrait penser à acheter du pain." });
+  // Même hors fenêtre de suivi et même si un autre agent était actif.
+  assert.equal(route("Et pour demain ?", direct({ activeAgent: "eva", followUpUntil: 0 })).agentId, "main");
+  // Un prénom prononcé reste un appel direct à cet agent.
+  assert.deepEqual(route("Ada, relis le rapport.", direct()), { kind: "message", agentId: "ada", text: "relis le rapport." });
+  assert.deepEqual(route("Ada ?", direct()), { kind: "wake", agentId: "ada" });
+  // Parler pendant que l'agent parle = couper la parole, pas un écho.
+  const spokenText = "Les tests sont passés, tout est vert sur la branche principale.";
+  assert.equal(route("les tests sont passés tout est vert", direct({ speaking: true, spokenText })).kind, "message");
+  assert.equal(route("Stop.", direct({ speaking: true })).kind, "stop");
+  // Rien d'utile ou bruit : rien n'est envoyé.
+  assert.equal(route("Euh…", direct()).kind, "ignored");
+  assert.equal(route("Merci.", direct()).kind, "ignored");
+});
+
 test("un autre agent peut être appelé pendant qu'un premier est actif", () => {
   const r = route("Ada, relis le rapport.", ctx({ activeAgent: "neo", followUpUntil: 99999 }));
   assert.equal(r.agentId, "ada");
