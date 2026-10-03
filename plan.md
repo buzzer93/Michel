@@ -357,7 +357,7 @@ vérifiée ; push-to-talk sans parole vérifié. **Phase 1 (étapes 0 à 9) term
 
 ---
 
-## Étape R — Renommage « jarvis » → « michel » (avant la phase 2)
+## ~~Étape R — Renommage « jarvis » → « michel » (avant la phase 2)~~ ✅
 
 Demande de l'utilisateur : plus aucune trace de « jarvis » — fichiers, commandes, services, chemins, compte système.
 Le travail laissé par la session parallèle (étape V, lanceur Windows) est commité tel quel avant (`c112734`) pour que
@@ -394,14 +394,20 @@ Avancement (2026-10-03) :
   chemin d'installation → réinstallé depuis le paquet officiel (statut « officiel de confiance ») ; la surcharge
   `openclaw-gateway.service.d/para.conf` attendait encore l'ancien montage. `openclaw doctor --lint` : rien de
   nouveau (avertissements déjà connus).
-- R.4 Sept services, dashboard (7 Michel, mémoire identique à l'octet près, fiche d'amélioration), lanceur Windows
+- ~~R.4~~ Sept services, dashboard (7 Michel, mémoire identique à l'octet près, fiche d'amélioration), lanceur Windows
   (`Running`, `Gateway`), 27 cas d'évaluation (routage, Michel, Écrit, Compile, autorisations, sécurité, `SOUL.md`
-  protégé) **27 / 27**, hors ligne : Qwen répond en 20 s. Reste : Explore, Organise, Vérifie, Construit (bac à
-  sable) après la remise à zéro de la fenêtre ChatGPT de 5 h (20:03). Au passage : le bouton d'arrêt du dashboard
-  (utilisé pendant la vérification) ne journalisait pas la demande → ligne ajoutée.
-- R.5 Plus aucune occurrence dans le dépôt (hors cette section) ni dans `/etc`, `/opt`, `/var/lib`, les unités et
+  protégé) **27 / 27**, hors ligne : Qwen répond en 20 s. Après la remise à zéro de la fenêtre ChatGPT : Explore,
+  Organise, Vérifie et Construit sur GPT, délégations M06 et M08 comprises, **7 / 7**
+  (`docs/evals/*-renommage-gpt.md`, aucun cas en secours) ; Construit a lancé `git status` dans son bac à sable
+  (`michel-sandbox:node24`). Au passage : le bouton d'arrêt du dashboard (utilisé pendant la vérification) ne
+  journalisait pas la demande → ligne ajoutée.
+- ~~R.5~~ Plus aucune occurrence dans le dépôt (hors cette section) ni dans `/etc`, `/opt`, `/var/lib`, les unités et
   Docker ; seules restent les copies automatiques de Linux `/etc/passwd-`, `/etc/group-`, `/etc/shadow-`,
   `/etc/gshadow-` (remplacées à la prochaine modification de compte).
+
+**Fait le 2026-10-03.** Tout fonctionne sous le nom « michel » (34 cas d'évaluation sur 34 après le déménagement,
+secours hors ligne vérifié) ; commit `99104a9`. La sauvegarde et le retour arrière restent dans
+`/var/backups/michel-rename-20261003-1558/` en attendant quelques jours d'usage normal.
 
 ---
 
