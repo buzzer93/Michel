@@ -82,7 +82,7 @@ def exec_of(agent_id):
 # Read-only view of the repository mounted into each reading agent's workspace (systemd bind mounts
 # below): source folders and docs only, never config/ (secrets), certs/, vendor/ or .git. The only files taken from
 # config/ and vendor/ are the versioned examples the test suite reads (no secret in them).
-project_paths = ['server', 'web', 'tts', 'docs', 'deployment', 'systemd', 'bin', 'agents', 'README.md', 'INSTALLATION.md', 'UTILISATION.md',
+project_paths = ['server', 'web', 'tts', 'docs', 'deployment', 'systemd', 'bin', 'agents', 'README.md', 'plan.md',
                  'config/agents.example.json', 'config/settings.example.json', 'vendor/voices/voices.json']
 # Agents that run code (tests, git: a test file written by an agent is arbitrary code) do it in a Docker sandbox
 # (deployment/sandbox/Dockerfile): no network, read-only root, no capability, the michel uid, and none of the

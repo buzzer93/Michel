@@ -328,6 +328,9 @@ ouverte prend-elle les nouvelles consignes sans « Nouvelle conversation » ?
   traces, évaluations, boucle d'amélioration hebdomadaire, `--apply-repo`) ; `README.md` : fonctions de gouvernance
   et commandes d'évaluation. `Guide-Michel-WSL.md`, ancienne variante (Qwen seul, sans outils) devenue fausse :
   supprimé à la demande de l'utilisateur. `UTILISATION.md` reste le guide générique du projet (équipe d'exemple).
+  Le 2026-10-03, à la demande de l'utilisateur, `Guide-Michel.md`, `INSTALLATION.md`, `UTILISATION.md` et
+  `LANCEUR-WINDOWS.md` ont été fusionnés dans un `README.md` unique, en français (installation de référence WSL2 puis
+  installation générique) ; restent à part ce plan, la licence et les notes techniques de `vendor/`.
   Retour d'usage : le panneau « Amélioration » se vide une fois la décision prise (« Annuler » reste 30 s après
   « Appliquer »).
 - ~~9.2 Jeu d'évaluation repassé, comparé à la référence de l'étape 4.~~
