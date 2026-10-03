@@ -175,6 +175,7 @@ body[data-state="sleep"] .pill.now i, body[data-state="offline"] .pill.now i { b
 /* model panel: model of the active agent and its plan quota windows */
 .model-body { padding: 8px 14px 12px; display: grid; gap: 8px; }
 .model-name { margin: 0; font: 600 15px var(--font); letter-spacing: .04em; color: var(--ink); text-shadow: 0 0 12px rgba(34, 211, 238, .35); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-name.fallback { color: #fbbf24; text-shadow: 0 0 12px rgba(251, 191, 36, .35); }   /* a fallback model answered */
 .quota { display: grid; gap: 8px; }
 .quota .row { display: flex; justify-content: space-between; align-items: baseline; }
 .quota b { font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); }

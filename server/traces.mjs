@@ -7,13 +7,21 @@ import { join } from "node:path";
 const KEEP_DAYS = 30;
 
 /** Trace line of a finished request. `usage` is the last model/usage snapshot (see server refreshUsage). */
+/** Model that really produced a reply, read from the reply message itself ("provider"/"model" fields). The session list
+ * only gives the configured model, even when a fallback answered. Claude through Claude Code reports "claude-cli":
+ * named "anthropic" like in the configuration, so that it is not mistaken for a fallback. */
+export function answeredBy(message) {
+  if (!message?.model || !message?.provider || message.model === "automation-result") return null;
+  return { provider: message.provider === "claude-cli" ? "anthropic" : message.provider, model: message.model };
+}
+
 // `instructions`: which version of the agent's instructions answered (an applied improvement id, or "base"; plan step 8.6).
 export function traceRecord(run, { agentName, usage, instructions = null, now = Date.now() } = {}) {
   const m = usage?.models?.[run.agentId] ?? {};
   return {
     ts: new Date(now).toISOString(), runId: run.runId, agent: run.agentId, agentName: agentName ?? run.agentId,
     request: String(run.request ?? "").slice(0, 300),
-    model: m.model ? `${m.provider}/${m.model}` : null, contextTokens: m.contextTokens ?? null,
+    model: run.model ?? (m.model ? `${m.provider}/${m.model}` : null), contextTokens: m.contextTokens ?? null,
     ms: now - run.startedAt, tools: run.toolNames ?? [], toolCount: run.toolCount ?? 0,
     delegations: run.delegatedTo ?? [], approvals: run.approvals ?? [], instructions,
   };

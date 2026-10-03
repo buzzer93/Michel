@@ -207,8 +207,12 @@ export class ModelPanel {
     const m = models[this.agent] ?? models.main ?? Object.values(models)[0];
     if (!m?.model) { this.name.textContent = "–"; this.quota.replaceChildren(); this.aux.textContent = ""; this.note.textContent = " "; return; }
     const p = providers.find((x) => x.provider === m.provider);
+    // m is the model that really answered last (the server reads it from the reply); "fallback" when it is not the
+    // agent's primary model, e.g. Claude while the ChatGPT quota is used up, or the local Qwen without Internet.
+    const providerName = { openai: "OpenAI", anthropic: "Anthropic", ollama: "local" }[m.provider] ?? m.provider ?? "";
     this.name.textContent = m.model; this.name.title = `${m.provider}/${m.model}`;
-    this.aux.textContent = p?.plan ? `${p.name} · ${p.plan}` : (m.provider ?? "");
+    this.name.classList.toggle("fallback", Boolean(m.fallback));
+    this.aux.textContent = (m.fallback ? "secours · " : "") + (p?.plan ? `${p.name} · ${p.plan}` : providerName);
     const reset = (ms) => (ms ? new Date(ms).toLocaleString("fr-FR", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : "");
     this.quota.innerHTML = (p?.windows ?? []).map((w) => `<div class="quota-row${w.usedPercent >= 85 ? " hot" : ""}">
       <div class="row"><b>${esc(w.label === "Week" ? "Semaine" : w.label)}</b><span class="val">${w.usedPercent} % utilisé</span></div>
@@ -217,6 +221,7 @@ export class ModelPanel {
     const parts = [];
     if (m.contextTokens) parts.push(`contexte ${k(m.contextTokens)}${m.contextMax ? ` / ${k(m.contextMax)}` : ""} tokens`);
     if (p?.balance) parts.push(`crédit API ${p.balance.amount}${p.balance.unit && p.balance.unit !== "credits" ? ` ${p.balance.unit}` : ""}`);
+    if (!p && m.provider !== "ollama") parts.push("consommation non remontée par ce fournisseur");
     this.note.textContent = parts.join(" · ") || " ";
   }
 }

@@ -239,6 +239,13 @@ plafond de délégations, demande bloquée (recherche d'Explore de 67 s), refus 
 Constat en passant : à 14 h 23 les 7 services avaient été arrêtés (arrêt complet) ; gateway et Ollama relancés pour
 le test.
 
+**Corrigé le 2026-10-03** (signalé par l'utilisateur : quota ChatGPT à 100 %, le panneau Modèle affichait toujours
+GPT). Le modèle venait de la liste des sessions, qui donne le modèle **configuré** ; un vrai passage en secours ne le
+change pas. Le test ci-dessus avait forcé la session sur Qwen, cas artificiel qui masquait le défaut : panneau, traces
+et alerte « modèle de secours » se trompaient en usage réel. Le serveur lit désormais le modèle dans la réponse
+enregistrée (`answeredBy`, Claude Code nommé `anthropic` comme la configuration). Vérifié : quota à 100 % → panneau
+« claude-sonnet-5-5 · secours » en ambre, trace `anthropic/claude-sonnet-5-5`, alerte déclenchée.
+
 ## ~~Étape 7 — Rappels et minuteurs (§9)~~ ✅
 
 Seulement maintenant : un agent qui agit à heure fixe doit d'abord être borné (étape 2) et tracé (étape 6).

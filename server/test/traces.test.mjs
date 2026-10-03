@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, readdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { traceRecord, appendTrace, alertsFor, alertGate } from "../traces.mjs";
+import { traceRecord, appendTrace, alertsFor, alertGate, answeredBy } from "../traces.mjs";
 
 const NOW = Date.parse("2026-10-02T10:00:00Z");
 const usage = {
@@ -24,6 +24,18 @@ test("trace : une ligne par demande, modèle réellement utilisé", () => {
     assert.deepEqual(readdirSync(dir).sort(), ["2026-10-02.jsonl", "notes.txt"]);
     assert.equal(readFileSync(join(dir, "2026-10-02.jsonl"), "utf8").trim().split("\n").length, 2);
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("modèle réel : lu dans la réponse, Claude Code nommé comme la configuration", () => {
+  assert.deepEqual(answeredBy({ provider: "claude-cli", model: "claude-sonnet-5-5" }), { provider: "anthropic", model: "claude-sonnet-5-5" });
+  assert.deepEqual(answeredBy({ provider: "ollama", model: "qwen3.5:4b" }), { provider: "ollama", model: "qwen3.5:4b" });
+  assert.equal(answeredBy({ model: "automation-result" }), null);
+  assert.equal(answeredBy(undefined), null);
+  const t = traceRecord({ runId: "r2", agentId: "main", startedAt: NOW, model: "anthropic/claude-sonnet-5-5" }, { usage, now: NOW });
+  assert.equal(t.model, "anthropic/claude-sonnet-5-5");                     // the real model wins over the session's
+  const a = alertsFor({ usage: { models: { main: { provider: "anthropic", model: "claude-sonnet-5-5" }, agenda: { provider: "anthropic", model: "claude-sonnet-5-5" } } },
+    primary: { main: "openai/gpt-6-astra", agenda: "anthropic/claude-sonnet-5-5" } });
+  assert.deepEqual(a.map((x) => x.key), ["fallback:main:anthropic/claude-sonnet-5-5"]);   // Écrit on Claude Code is not a fallback
 });
 
 test("alertes : quota, modèle de secours, demande bloquée ; une seule fois par période", () => {

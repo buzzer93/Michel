@@ -20,7 +20,7 @@ import { SysSampler } from "./sysstats.mjs";
 import { approvalView, forbiddenReason, resolveMethod } from "./approvals.mjs";
 import { memoryStore } from "./memory.mjs";
 import { listImprovements, decideImprovement } from "./improvements.mjs";
-import { traceRecord, appendTrace, alertsFor, alertGate } from "./traces.mjs";
+import { traceRecord, appendTrace, alertsFor, alertGate, answeredBy } from "./traces.mjs";
 import { SYSTEM_STOP_UNIT_FILE, stopAllCommand } from "./system-control.mjs";
 
 const APP = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -327,6 +327,8 @@ function onGatewayEvent(ev) {
       speak(run, ["Désolé, je n'ai pas pu terminer."]);
       send(run.clientId, { t: "notice", id: run.agentId, level: "error", text: frenchError(p.errorKind) });
     } else if (p.state === "final") speak(run, run.stream.update(text || run.stream.full, true));
+    const by = answeredBy(p.message);
+    if (by) { answeredModels.set(run.agentId, by); run.model = `${by.provider}/${by.model}`; }
     sendDetail(run, true);
     // Windows only when the user asked for one in this utterance: an agent never opens them on its own.
     if (run.allowWindow) for (const w of extractWindows(run.stream.full)) browserWins.open({ clientId: run.clientId, key: `browser:${run.agentId}:${w.url}`, url: w.url, agentId: run.agentId, title: w.title }).catch((e) => log("navigateur:", e.message));
@@ -366,8 +368,18 @@ function finishRun(runId, run) {
     log(`temps ${run.agentId}: transcription ${run.sttMs ?? "—"} ms · 1re phrase ${since(run.firstSentenceAt)} · 1er son ${since(run.firstAudioAt)} · total ${Date.now() - run.startedAt} ms`);
     if (st.runs === 0 && st.status !== "speaking") setStatus(run.agentId, "idle");
     broadcast({ t: "done", id: run.agentId, runId, tools: run.toolCount, ms: Date.now() - run.startedAt });
-    refreshUsage().then(() => writeTrace(run));
+    noteAnsweredModel(run).then(refreshUsage).then(() => writeTrace(run));
   });
+}
+
+/** The "final" chat event does not say which model answered; the reply stored in the session does (answeredBy). */
+async function noteAnsweredModel(run) {
+  if (run.model) return;
+  try {
+    const h = await gateway.request("chat.history", { sessionKey: sessionKeyFor(run.agentId), limit: 4 }, { timeoutMs: 10000 });
+    const by = answeredBy((h?.messages ?? []).filter((m) => m.role === "assistant").at(-1));
+    if (by) { answeredModels.set(run.agentId, by); run.model = `${by.provider}/${by.model}`; }
+  } catch (e) { debug("modèle réel indisponible:", e?.message); }
 }
 
 // ───────────────────────────── speech out (TTS) ─────────────────────────────
@@ -565,6 +577,8 @@ const TRACES_DIR = settings.tracesDir ?? join(homedir(), "traces");
 const alertThresholds = { quotaPercent: settings.alerts?.quotaPercent ?? 85, stuckMinutes: settings.alerts?.stuckMinutes ?? 5 };
 const alertOnce = alertGate();
 let lastUsage = null;
+// agentId → model that really produced its last reply (see answeredBy): the session list only gives the configured one.
+const answeredModels = new Map();
 
 function raiseAlert(key, text) {
   if (!alertOnce(key)) return;
@@ -630,6 +644,11 @@ async function refreshUsage() {
     for (const s of list?.sessions ?? []) {
       const id = agentOfSession(s.key);
       if (id) models[id] = { provider: s.modelProvider ?? null, model: s.model ?? null, contextTokens: s.totalTokensFresh ? s.totalTokens ?? null : null, contextMax: s.contextTokens ?? null };
+    }
+    // The model that really answered last replaces the configured one; "fallback" when it is not the agent's primary.
+    for (const [id, by] of answeredModels) {
+      const want = ocCfg.agents?.entries?.[id]?.model?.primary;
+      models[id] = { ...(models[id] ?? {}), ...by, fallback: Boolean(want && `${by.provider}/${by.model}` !== want) };
     }
     const providers = (usage?.providers ?? []).map((p) => ({
       provider: p.provider, name: p.displayName ?? p.provider, plan: p.plan ?? null,
