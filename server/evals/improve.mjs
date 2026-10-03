@@ -172,7 +172,7 @@ say(`proposition d'Organise : ${proposal.why}`);
 // ───────────── 3. branch + Michel Construit ─────────────
 git("fetch", "-q", "origin");
 const branch = `amelioration/${stamp}`;
-git("switch", "-q", "-c", branch, "origin/agentic-os");
+git("switch", "-q", "-c", branch, "origin/main");
 const baseCommit = git("rev-parse", "HEAD");
 // The implementer's git allowlist refuses ".." anywhere in the arguments, and the message goes between double quotes.
 const commitMsg = `Amélioration ${stamp} : ${proposal.why}`.slice(0, 120).replace(/"/g, "'").replace(/\.{2,}/g, ".");
