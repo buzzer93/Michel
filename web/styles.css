@@ -134,6 +134,13 @@ body[data-state="sleep"] .pill.now i, body[data-state="offline"] .pill.now i { b
 .notes ul { margin: 4px 0 0; padding-left: 18px; font-size: 12px; }
 .notes li.done { text-decoration: line-through; opacity: .55; }
 .notes .empty { margin: 0; font-size: 11px; color: var(--dim); }
+/* rules of work validated by the user (USER.md), removable */
+.rules summary { cursor: pointer; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.rules ul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; }
+.rules li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px; font-size: 12px; }
+.rules li.deciding { opacity: .4; }
+.rules button { width: 22px; height: 22px; border: 0; border-radius: 50%; cursor: pointer; background: rgba(255, 255, 255, .08); color: var(--ink); }
+.rules button:hover { background: #fb7185; color: #2a0710; }
 /* improvement panel: a candidate change of Michel's instructions, waiting for the user (plan step 8) */
 #improve[hidden] { display: none; }
 .imp-body { padding: 8px 12px 12px; max-height: 34vh; overflow: auto; scrollbar-width: thin; }

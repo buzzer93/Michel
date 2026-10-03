@@ -27,7 +27,7 @@ new Clock($("clock"));
 const team = new TeamList();
 const session = new SessionPanel($("session"));
 const modelPanel = new ModelPanel($("model"));
-const memoryPanel = new MemoryPanel($("memory"), (id, accept) => send({ t: "proposal.decide", id, accept }));
+const memoryPanel = new MemoryPanel($("memory"), (id, accept) => send({ t: "proposal.decide", id, accept }), (id) => send({ t: "rule.remove", id }));
 const improvePanel = new ImprovePanel($("improve"), (id, action) => send({ t: "improvement.decide", id, action }));
 const approvals = new ApprovalCards($("approvals"), (id, decision) => send({ t: "approval.resolve", id, decision }));
 const sys = new SysPanel($("sys"));

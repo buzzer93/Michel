@@ -126,18 +126,26 @@ export class ApprovalCards {
 
 /** Governed memory: Michel's proposals (validated → remembered, rejected → dropped) and his notes and lists. */
 export class MemoryPanel {
-  constructor(root, onDecide) {
+  constructor(root, onDecide, onRemoveRule) {
     this.onDecide = onDecide;
-    root.innerHTML = panelHead("Mémoire", "") + `<div class="mem-body"><ul class="proposals"></ul><div class="notes"></div></div>`;
-    [this.aux, this.props, this.notes] = [".aux", ".proposals", ".notes"].map((s) => root.querySelector(s));
+    root.innerHTML = panelHead("Mémoire", "") + `<div class="mem-body"><ul class="proposals"></ul><details class="rules" hidden><summary>Règles de travail</summary><ul></ul></details><div class="notes"></div></div>`;
+    [this.aux, this.props, this.notes, this.rules] = [".aux", ".proposals", ".notes", ".rules"].map((s) => root.querySelector(s));
     this.props.addEventListener("click", (e) => {
       const b = e.target.closest("button"); if (!b) return;
       b.closest("li").classList.add("deciding");
       this.onDecide(b.dataset.id, b.dataset.accept === "1");
     });
+    this.rules.addEventListener("click", (e) => {
+      const b = e.target.closest("button"); if (!b) return;
+      b.closest("li").classList.add("deciding");
+      onRemoveRule(b.dataset.id);
+    });
   }
 
-  update({ proposals = [], notes = [] }) {
+  update({ proposals = [], notes = [], rules = [] }) {
+    // Rules of work the user validated (USER.md): Michel applies them in every conversation; ✕ removes one.
+    this.rules.hidden = !rules.length;
+    this.rules.querySelector("ul").innerHTML = rules.map((r) => `<li><span class="txt">${esc(r.text)}</span><button data-id="${esc(r.id)}" title="Retirer cette règle">✕</button></li>`).join("");
     this.aux.textContent = proposals.length ? `${proposals.length} à valider` : "";
     this.props.innerHTML = proposals.map((p) => `<li><span class="kind">${esc(p.kind)}</span><span class="txt">${esc(p.text)}</span>
       <button data-id="${esc(p.id)}" data-accept="1" title="Valider : Michel s'en souviendra">✓</button><button data-id="${esc(p.id)}" data-accept="0" title="Rejeter">✕</button></li>`).join("");
@@ -182,10 +190,13 @@ export class ImprovePanel {
     const buttons = r.status === "en attente"
       ? `<button data-id="${esc(r.id)}" data-action="apply" class="ok">Appliquer</button><button data-id="${esc(r.id)}" data-action="refuse">Refuser</button>`
       : r.status === "appliquée" ? `<button data-id="${esc(r.id)}" data-action="rollback">Annuler (30 s)</button>` : "";
+    // A change the user asked Michel for (self-edit.mjs) is not measured on the evaluation cases, unlike the weekly loop.
+    const measured = r.source !== "demande";
     this.body.innerHTML = `<div class="imp${r.recommended ? " rec" : ""}">
       <p class="why">${esc(r.why)}</p>
-      <p class="score">Michel <b>${score(r.before)}</b> → candidat <b>${score(r.after)}</b>${r.regressions?.length ? ` · <span class="reg">régressions : ${esc(r.regressions.join(", "))}</span>` : ""}</p>
-      <small>${r.recommended ? "recommandée" : "non recommandée"} · échecs visés : ${esc((r.failures ?? []).join(", ") || "aucun")}</small>
+      ${measured ? `<p class="score">Michel <b>${score(r.before)}</b> → candidat <b>${score(r.after)}</b>${r.regressions?.length ? ` · <span class="reg">régressions : ${esc(r.regressions.join(", "))}</span>` : ""}</p>
+      <small>${r.recommended ? "recommandée" : "non recommandée"} · échecs visés : ${esc((r.failures ?? []).join(", ") || "aucun")}</small>`
+        : `<small>demandée par toi · non évaluée sur les cas de test</small>`}
       <details><summary>Modification de ${esc(r.file ?? "AGENTS.md")}</summary><pre class="diff">${lines || "(aucune)"}</pre></details>
       <div class="imp-actions">${buttons}</div></div>`;
   }

@@ -1,5 +1,6 @@
 // Turns a streaming agent reply into (a) sentences to speak and (b) markdown detail for the screen.
 // The agent is asked to open with <voix>…</voix>; everything after it is on-screen detail.
+import { stripSelfEdits } from "./self-edit.mjs";
 
 /** True when the user explicitly asks for something on screen in a browser window ("ouvre le site…",
  * "montre-moi la doc dans une fenêtre", "affiche la page…"). Agents must not open windows on their own. */
@@ -83,7 +84,9 @@ export class ReplyStream {
 
   /** Feed the full accumulated text so far. Returns newly completed sentences to speak. */
   update(fullText, final = false) {
-    fullText = stripRuntimeNotices(fullText);
+    // raw keeps Michel's self-edit tags for the server (self-edit.mjs); they are neither spoken nor displayed.
+    this.raw = stripRuntimeNotices(fullText);
+    fullText = stripSelfEdits(this.raw);
     this.full = fullText;
     const open = fullText.indexOf("<voix>");
     if (open === -1) {

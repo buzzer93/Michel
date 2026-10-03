@@ -12,7 +12,7 @@ export function listImprovements(dir, limit = 3) {
   return readdirSync(dir).filter((f) => f.endsWith(".json")).sort().reverse().slice(0, limit).map((f) => {
     const r = JSON.parse(readFileSync(join(dir, f), "utf8"));
     return { id: r.id, createdAt: r.createdAt, status: r.status, why: r.why, failures: r.failures, before: r.before, after: r.after,
-      regressions: r.regressions, recommended: r.recommended, diff: r.diff, file: r.file };
+      regressions: r.regressions, recommended: r.recommended, diff: r.diff, file: r.file, source: r.source ?? "boucle" };
   });
 }
 

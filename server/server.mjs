@@ -19,6 +19,7 @@ import { loadAgents, readTeamTaglines, delegationTargets, buildSttPrompt, assign
 import { SysSampler } from "./sysstats.mjs";
 import { approvalView, forbiddenReason, resolveMethod } from "./approvals.mjs";
 import { memoryStore } from "./memory.mjs";
+import { extractSelfEdits, addProposal, removeRule, instructionChange } from "./self-edit.mjs";
 import { listImprovements, decideImprovement } from "./improvements.mjs";
 import { traceRecord, appendTrace, alertsFor, alertGate, answeredBy } from "./traces.mjs";
 import { SYSTEM_STOP_UNIT_FILE, stopAllCommand } from "./system-control.mjs";
@@ -329,6 +330,8 @@ function onGatewayEvent(ev) {
     } else if (p.state === "final") speak(run, run.stream.update(text || run.stream.full, true));
     const by = answeredBy(p.message);
     if (by) { answeredModels.set(run.agentId, by); run.model = `${by.provider}/${by.model}`; }
+    // Queued only: nothing changes Michel's memory or instructions before the user's click (self-edit.mjs).
+    if (p.state === "final") { try { queueSelfEdits(run); } catch (e) { log("demandes de modification :", e?.message); } }
     sendDetail(run, true);
     // Windows only when the user asked for one in this utterance: an agent never opens them on its own.
     if (run.allowWindow) for (const w of extractWindows(run.stream.full)) browserWins.open({ clientId: run.clientId, key: `browser:${run.agentId}:${w.url}`, url: w.url, agentId: run.agentId, title: w.title }).catch((e) => log("navigateur:", e.message));
@@ -605,7 +608,27 @@ function writeTrace(run) {
 
 // Governed memory (see memory.mjs): Michel's proposals waiting for the user, and his notes and lists. Sent when it
 // changes (checked with the usage refresh: after each answer and every minute).
-const memory = memoryStore(ocCfg.agents?.entries?.main?.workspace ?? join(homedir(), ".openclaw/workspace"));
+const MAIN_WS = ocCfg.agents?.entries?.main?.workspace ?? join(homedir(), ".openclaw/workspace");
+const memory = memoryStore(MAIN_WS);
+
+// Michel's self-edit requests (see self-edit.mjs): tags at the end of his answer to a request of the user. Everything
+// is only queued: proposals and rules wait in the Memory panel, instruction changes in the Amélioration panel.
+function queueSelfEdits(run) {
+  if (run.agentId !== "main" || !run.request || run.request.startsWith("(")) return;   // never on an unsolicited reply
+  const { proposals, rules, changes } = extractSelfEdits(run.stream.raw ?? "");
+  const tell = (text) => send(run.clientId, { t: "notice", id: run.agentId, text });
+  for (const p of [...proposals, ...rules.map((text) => ({ kind: "règle", text }))]) {
+    addProposal(MAIN_WS, p);
+    log(`mémoire : proposition (${p.kind}) : ${p.text.slice(0, 160)}`);
+    tell(`à valider dans Mémoire : ${p.text}`);
+  }
+  for (const c of changes) {
+    const rec = instructionChange(IMPROVE_DIR, MAIN_AGENTS_FILE, c);
+    log(rec ? `consignes : modification demandée ${rec.id}` : "consignes : modification demandée ignorée (texte à remplacer introuvable)");
+    tell(rec ? "modification de mes consignes à valider dans Amélioration" : "je n'ai pas pu préparer la modification de mes consignes");
+  }
+  if (proposals.length || rules.length || changes.length) { broadcastMemory(true); broadcastImprovements(true); }
+}
 let memoryKey = "";
 function broadcastMemory(force = false) {
   try {
@@ -752,6 +775,10 @@ function onBrowser(ws) {
       else if (msg.t === "proposal.decide" && typeof msg.id === "string") {
         const p = memory.decide(msg.id, msg.accept === true);
         if (p) log(`mémoire : proposition ${msg.accept === true ? "validée" : "rejetée"} (${p.kind}) : ${p.text.slice(0, 160)}`);
+        broadcastMemory(true);
+      }
+      else if (msg.t === "rule.remove" && typeof msg.id === "string") {
+        if (removeRule(MAIN_WS, msg.id)) log("règle retirée par l'utilisateur");
         broadcastMemory(true);
       }
       else if (msg.t === "improvement.decide" && typeof msg.id === "string" && ["apply", "refuse", "rollback"].includes(msg.action)) {
