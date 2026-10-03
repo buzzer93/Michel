@@ -453,7 +453,15 @@ Défaut au passage : Michel a affiché ce diagnostic technique dans sa réponse 
   l'afficher (le quota Claude Pro, partagé avec Claude Code, n'est pas remonté par OpenClaw).
 - 9b.2 Mémoire : recherche par le sens rétablie avec des vecteurs calculés en local (Ollama), index reconstruit,
   `openclaw memory status` propre.
-- 9b.3 Michel ne montre plus de diagnostic technique interne dans ses réponses.
+- 9b.3 Michel ne montre plus de diagnostic technique interne dans ses réponses (constaté deux fois le 2026-10-03 au
+  soir ; il dit aussi la recherche mémoire « bloquée » alors que seule la recherche par le sens l'est).
+- 9b.4 Premier retour d'expérience réel (2026-10-03, 21 h 26–21 h 35, « météo marine pour demain matin ») : Michel
+  Explore n'a pas pu lire Windfinder et s'est rabattu sur Météo Consult. Diagnostic : Windfinder remplit ses tableaux
+  de prévisions en JavaScript ; `web_fetch` ne récupère que le texte (titre, observation actuelle, heures), pas les
+  valeurs de vent et de vagues. Explore a l'outil `browser` (Chrome sans écran) mais ses consignes ne citent que
+  `web_fetch`. Aucune page Windfinder « Cargèse » trouvée (adresses `…/forecast/<lieu>_corsica_france`) : identifier le
+  spot le plus proche et l'inscrire dans la règle de l'utilisateur. À faire : consigne d'Explore (pages construites en
+  JavaScript → `browser`, page rendue), spot dans la règle, cas de test « météo marine » (étape 10).
 
 **Fait quand** : garde-fous fondés sur un quota récent, compteur Claude visible, recherche par le sens active sans
 envoi des conversations à l'extérieur.
