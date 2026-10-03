@@ -459,9 +459,10 @@ Défaut au passage : Michel a affiché ce diagnostic technique dans sa réponse 
   Explore n'a pas pu lire Windfinder et s'est rabattu sur Météo Consult. Diagnostic : Windfinder remplit ses tableaux
   de prévisions en JavaScript ; `web_fetch` ne récupère que le texte (titre, observation actuelle, heures), pas les
   valeurs de vent et de vagues. Explore a l'outil `browser` (Chrome sans écran) mais ses consignes ne citent que
-  `web_fetch`. Aucune page Windfinder « Cargèse » trouvée (adresses `…/forecast/<lieu>_corsica_france`) : identifier le
-  spot le plus proche et l'inscrire dans la règle de l'utilisateur. À faire : consigne d'Explore (pages construites en
-  JavaScript → `browser`, page rendue), spot dans la règle, cas de test « météo marine » (étape 10).
+  `web_fetch`. Spot donné par l'utilisateur : https://fr.windfinder.com/forecast/port-de-cargese-port-toussaint-rochiccio
+  (page vérifiée, valeurs absentes du HTML brut) ; les deux règles « météo marine » fusionnées en une, avec cette
+  adresse. Reste à faire : consigne d'Explore (pages construites en JavaScript → `browser`, page rendue), cas de test
+  « météo marine » (étape 10).
 
 **Fait quand** : garde-fous fondés sur un quota récent, compteur Claude visible, recherche par le sens active sans
 envoi des conversations à l'extérieur.
