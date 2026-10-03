@@ -158,9 +158,8 @@ recours `qwen3.5:4b` en local (Ollama), qui répond même sans Internet (en une 
 
 - OpenClaw ne transmet pas l'historique de la conversation à Claude (connexion non vérifiable) : chaque demande
   arrive sans le début de la conversation ;
-- les outils d'OpenClaw (lecture, écriture, commandes) n'y sont pas disponibles. Déléguer et répondre fonctionnent ;
-  les commandes de Michel Vérifie et Michel Construit, qui hors Docker tourneraient sur la machine, sont refusées ou
-  soumises à votre autorisation.
+- les outils d'OpenClaw (lecture, écriture, commandes) n'y sont pas disponibles. Répondre et déléguer fonctionnent ;
+  les commandes de Michel Vérifie et Michel Construit, qui tourneraient hors de leur bac à sable Docker, sont refusées.
 
 Une clé API Anthropic (facturée à l'usage) lèverait ces limites ; elle n'est pas utilisée aujourd'hui.
 
