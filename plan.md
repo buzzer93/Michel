@@ -418,8 +418,17 @@ rend Michel conforme à ces attentes, pas forcément à l'usage réel, et ne tou
 Constats sur le quota (étape 9, 2026-10-03) : une évaluation complète vide à elle seule la fenêtre de 5 h de
 l'abonnement ChatGPT Plus (0 → 100 %, et 16 % de la semaine) ; le quota renvoyé par le gateway est **en retard**
 (0 % affiché plus de 15 min après l'évaluation) ; le quota Anthropic (Écrit, Compile, secours de Michel) n'est pas
-remonté du tout. À traiter en tête de phase 2 : marquer « non valide » un cas d'évaluation joué sur un modèle de
-secours ; ne pas décider d'un garde-fou sur une valeur périmée (âge de `updatedAt`) ; suivre le quota Anthropic.
+remonté du tout. À traiter en tête de phase 2 : ~~marquer « non valide » un cas d'évaluation joué sur un modèle de
+secours~~ (fait le 2026-10-03 : le rapport l'annonce en tête, « Mesure à reprendre ») ; ne pas décider d'un garde-fou
+sur une valeur périmée (âge de `updatedAt`) ; suivre le quota Anthropic.
+
+Secours Claude pour tous les Michel (2026-10-03, à la demande de l'utilisateur : OpenAI d'abord, Claude ensuite).
+Mesuré sur un vrai quota épuisé : via Claude Code, OpenClaw ne transmet pas l'historique de la conversation et ses
+outils de fichiers et de commande sont absents ; répondre et déléguer marchent. Corrigé : le bloc JSON du contrat
+ajouté par Claude en appel direct (règle rendue explicite), le modèle noté par l'évaluation. Construit et Vérifie :
+leurs commandes sont refusées en secours (Claude Code les lancerait hors Docker) ; le mode « demander » a été essayé
+puis retiré (aucune demande pour Bash, seulement des demandes parasites pour les outils internes de Claude Code).
+Une clé API Anthropic lèverait ces limites (coût à l'usage).
 
 ### Étape 10 — Tri des cas d'usage et relecture des attentes
 

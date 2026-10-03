@@ -26,7 +26,7 @@ Transform a goal into the simplest viable, actionable technical plan.
 
 # Output format
 
-Numbered steps, then acceptance criteria, then the shared JSON block (`findings` = steps with the files concerned, `risks`, `assumptions`).
+Numbered steps, then acceptance criteria, then, only for a task delegated by Michel, the shared JSON block (`findings` = steps with the files concerned, `risks`, `assumptions`). When the user talks to you directly (`[Canal vocal Michel`), no JSON block.
 
 # Completion criteria
 

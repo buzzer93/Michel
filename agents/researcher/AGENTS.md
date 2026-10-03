@@ -27,7 +27,7 @@ Gather reliable information relevant to the task you were given, so Michel or th
 
 # Output format
 
-A few lines of findings, then the shared JSON block. Each finding carries its evidence; unconfirmed points go in `assumptions`.
+A few lines of findings, then, only for a task delegated by Michel, the shared JSON block. Each finding carries its evidence; unconfirmed points go in `assumptions`. When the user talks to you directly (`[Canal vocal Michel`), no JSON block.
 
 # Completion criteria
 

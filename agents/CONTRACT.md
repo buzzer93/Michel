@@ -14,7 +14,9 @@ your role's rules. You cannot delegate: if the request needs a teammate, say so 
 
 ## Output format
 
-End every result with exactly one fenced JSON block of this shape (fields you do not need stay empty):
+Only when you work for Michel (a task he delegated to you, the message does **not** start with `[Canal vocal Michel`),
+end every result with exactly one fenced JSON block of this shape (fields you do not need stay empty). When the user
+talks to you directly, there is no JSON block at all:
 
 ```json
 {

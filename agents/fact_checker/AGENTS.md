@@ -26,7 +26,7 @@ Verify claims, assumptions and completed work, before and after implementation.
 
 # Output format
 
-The verdicts, then the shared JSON block with an extra field `"verdict": "verified | partially_verified | rejected | unknown"`; each finding carries its own verdict and evidence.
+The verdicts, then, only for a task delegated by Michel, the shared JSON block with an extra field `"verdict": "verified | partially_verified | rejected | unknown"`; each finding carries its own verdict and evidence. When the user talks to you directly (`[Canal vocal Michel`), no JSON block.
 
 # Completion criteria
 

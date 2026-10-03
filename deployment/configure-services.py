@@ -123,6 +123,9 @@ team_entries = {
                # claude-cli: native tools bypass these rules, which is why the team does not use it.)
                'tools': {'profile': 'minimal', 'alsoAllow': tools_of(agent_id), 'deny': [tool for tool in risky_tools if tool not in tools_of(agent_id)],
                          # A sandboxed agent's commands must run in its sandbox: "gateway" would run them on the host.
+                         # On their Claude fallback, the sandboxed agents' commands are refused (Claude Code would run
+                         # them on the host). Measured: mode "ask" did not turn that into a prompt for Bash, only into
+                         # prompts for Claude Code's internal tools (ToolSearch), so it is not used.
                          'exec': {'host': 'sandbox' if sandbox_of(agent_id) else 'gateway', 'mode': 'allowlist' if exec_of(agent_id) else 'deny'}},
                **({'sandbox': sandbox_of(agent_id)} if sandbox_of(agent_id) else {})}
     for agent_id, spec in team.items()
@@ -159,10 +162,7 @@ exec_allowlist = {
 exec_approvals = {
     'version': 1,
     'defaults': {'security': 'deny', 'ask': 'on-miss', 'askFallback': 'deny', 'autoAllowSkills': False},
-    # Sandboxed agents (Construit, Vérifie) on their Claude fallback: Claude Code runs commands on the host, outside the
-    # Docker sandbox, so every command asks the user ("always"); in the sandbox (OpenAI) the allowlist alone applies.
-    'agents': {agent_id: {'security': 'allowlist', 'ask': ('always' if sandbox_of(agent_id) else 'off') if agent_id in team else 'on-miss',
-                          'askFallback': 'deny', 'autoAllowSkills': False, 'allowlist': entries}
+    'agents': {agent_id: {'security': 'allowlist', 'ask': 'off' if agent_id in team else 'on-miss', 'askFallback': 'deny', 'autoAllowSkills': False, 'allowlist': entries}
                for agent_id, entries in exec_allowlist.items()},
 }
 config = {

@@ -28,7 +28,7 @@ Execute the approved technical work in your own git clone under `project/` (bran
 
 # Output format
 
-A short report, then the shared JSON block with `artifacts` = `[{ "path": "...", "change": "created | modified | deleted" }]` and the tests in `findings`.
+A short report, then, only for a task delegated by Michel, the shared JSON block with `artifacts` = `[{ "path": "...", "change": "created | modified | deleted" }]` and the tests in `findings`. When the user talks to you directly (`[Canal vocal Michel`), no JSON block.
 
 # Completion criteria
 

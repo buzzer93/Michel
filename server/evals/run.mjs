@@ -15,6 +15,7 @@ import { route } from "../router.mjs";
 import { readAgentsFile } from "../agents.mjs";
 import { voiceBrief } from "../speech.mjs";
 import { spawnTarget } from "../tools.mjs";
+import { answeredBy } from "../traces.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const APP = join(HERE, "../..");
@@ -110,11 +111,19 @@ async function runAgent(c) {
   }
   sessions.delete(sessionKey);
   const ms = Date.now() - t0;
-  let model = null, tokens = null;
+  let model = null, tokens = null, fallback = false;
   try {
     const list = await gateway.request("sessions.list", { activeMinutes: 60, limit: 200 });
     const row = list.sessions?.find((s) => s.key === sessionKey);
     model = row ? `${row.modelProvider}/${row.model}` : null; tokens = row?.totalTokens ?? null;
+    // The session list gives the configured model; the stored reply says which model really answered. A case played
+    // on a fallback (quota used up, provider down) does not measure the same thing as the reference: flagged.
+    const h = await gateway.request("chat.history", { sessionKey, limit: 20 });
+    const by = answeredBy((h?.messages ?? []).filter((m) => m.role === "assistant").at(-1));
+    if (by) {
+      model = `${by.provider}/${by.model}`;
+      fallback = Boolean(cfg.agents?.entries?.[agent]?.model?.primary && model !== cfg.agents.entries[agent].model.primary);
+    }
   } catch { /* report without it */ }
 
   const e = c.expect, fails = [];
@@ -131,7 +140,7 @@ async function runAgent(c) {
   if (e.approvalMatches && rec.approvals.length && !rec.approvals.some((a) => re(e.approvalMatches).test(a))) fails.push(`approbation sans /${e.approvalMatches}/`);
   if (e.maxApprovals && rec.approvals.length > e.maxApprovals) fails.push(`${rec.approvals.length} demandes d'approbation (relance)`);
   if (watched && sha(watched) !== before) fails.push(`${watched} modifié`);
-  return { fails, details: { s: Math.round(ms / 1000), model, tokens, delegations: rec.delegations, approvals: rec.approvals, answer: rec.answer.replace(/\s+/g, " ").slice(0, 240) } };
+  return { fails, details: { s: Math.round(ms / 1000), model, fallback, tokens, delegations: rec.delegations, approvals: rec.approvals, answer: rec.answer.replace(/\s+/g, " ").slice(0, 240) } };
 }
 
 // ───────────── main ─────────────
@@ -159,6 +168,9 @@ writeFileSync(join(outDir, `${reportName}.json`), JSON.stringify({ stamp, label,
 const md = [
   `# Évaluation des agents — ${stamp.replace("T", " ")}${label ? ` (${label})` : ""}`, "",
   `**${passed} / ${results.length} cas réussis.** Généré par \`server/evals/run.mjs\` à partir de \`server/evals/cases.json\`.`, "",
+  ...(results.some((r) => r.fallback)
+    ? [`> **Mesure à reprendre :** ${results.filter((r) => r.fallback).map((r) => `${r.id} (${r.model})`).join(", ")} joué(s) sur un modèle de secours, pas sur le modèle prévu.`, ""]
+    : []),
   "| Catégorie | Réussis |", "| --- | --- |", ...Object.entries(byCat).map(([k, v]) => `| ${k} | ${v.pass} / ${v.total} |`), "",
   "| Cas | Résultat | Durée | Délégations | Approbations | Détail |", "| --- | --- | --- | --- | --- | --- |",
   ...results.map((r) => `| ${r.id} | ${r.pass ? "✅" : "❌"} | ${r.s != null ? r.s + " s" : "—"} | ${(r.delegations ?? []).join(", ") || "—"} | ${(r.approvals ?? []).length || "—"} | ${(r.pass ? (r.type === "route" ? `${r.kind} ${r.agentId ?? ""}` : excerpt(r)) : r.fails.join(" ; ")).replace(/\|/g, "/")} |`),
