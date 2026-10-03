@@ -219,7 +219,13 @@
         "speaker_id": 1,
         "length_scale": 1.02
       },
-      "note": "Homme grave : M3 (F0 ~106 Hz) + traitement robot. Supertonic 3 depuis le 2026-09-24. Avant (bloc pockettts conserve) : Homme grave (F0 ~122 Hz) + traitement robot (voix synthetique). Pocket TTS, timbre clone de axiom_gf.wav (LibriVox) Effet robot retiré le 2026-10-01 (intonation écrasée) ; le remettre : \"fx\": \"robot\", \"fx_amount\": 0.85.",
+      "note": "Voix de Michel depuis le 2026-10-03 : Supertonic M4 (F0 ~124 Hz) + robot léger à modulation très rapide (300 Hz, au-dessus de la fondamentale : tintement métallique plutôt que bourdonnement ; profondeur 0.3, sans passage par zéro, pour garder l'intonation), résonance « casque » faible (fx_comb 0.15), grain numérique marqué (fx_amount 0.8 ≈ 12 bits), sans écho. Choisi à l'écoute par l'utilisateur après 7 séries : écho rejeté, M5 pitch 0.8-0.9 trop grave, M5 robot fort (profondeur 0.85) écarté. Identifiant conservé pour ne pas toucher config/agents.json, même si la voix n'est plus grave. Avant : M3 sans effet (robot à 42 Hz retiré le 2026-10-01, intonation écrasée).",
+      "fx": "robot",
+      "fx_amount": 0.8,
+      "fx_freq": 300,
+      "fx_depth": 0.3,
+      "fx_comb": 0.15,
+      "fx_low_cut": 70,
       "openvoice": {
         "ref": "axiom_rab.wav",
         "speed": 1.0
@@ -230,7 +236,7 @@
       },
       "tempo": 1.0,
       "supertonic": {
-        "voice": "M3",
+        "voice": "M4",
         "speed": 1.0
       },
       "openai": {

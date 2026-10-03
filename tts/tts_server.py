@@ -139,18 +139,22 @@ def prepare(text):
     return re.sub(r"\s+", " ", text).strip()
 
 
-def robot_fx(x, rate, amount=1.0):
+def robot_fx(x, rate, amount=1.0, freq=42.0, depth=None, comb=None, low_cut=90.0):
     """Synthetic-voice treatment that keeps consonants intact (checked with tts/voice_qa.py):
     ring modulation (metallic buzz) + short comb delay (resonant "helmet") + band limiting + gentle bit
-    reduction. `amount` 0..1.5 scales the effect."""
+    reduction. `amount` 0..1.5 scales the effect. Optional overrides (voices.json fx_freq, fx_depth,
+    fx_comb, fx_low_cut): modulation speed in Hz (faster = tighter buzz), modulation depth (above 0.5
+    the carrier crosses zero: true ring modulation), comb gain, low edge of the band in Hz (lower it for
+    a deep voice so its fundamental survives)."""
     n = len(x)
     t = np.arange(n, dtype=np.float32) / rate
-    carrier = 1.0 - 0.28 * amount * (1.0 - np.cos(2 * np.pi * 42.0 * t))     # ring mod, never fully silent
+    depth = 0.28 * amount if depth is None else depth
+    carrier = 1.0 - depth * (1.0 - np.cos(2 * np.pi * freq * t))              # ring mod
     y = x * carrier
     d = int(rate * 0.0037)                                                     # 3.7 ms comb → metallic timbre
     if d and n > d:
-        y[d:] += 0.35 * amount * y[:-d]
-    b, a = butter(2, [90 / (rate / 2), min(5200, rate / 2 - 100) / (rate / 2)], btype="band")  # keep a male fundamental
+        y[d:] += (0.35 * amount if comb is None else comb) * y[:-d]
+    b, a = butter(2, [low_cut / (rate / 2), min(5200, rate / 2 - 100) / (rate / 2)], btype="band")  # keep a male fundamental
     y = lfilter(b, a, y)
     step = 32768 / (2 ** (16 - 5 * amount))                                    # ~11-bit grain when amount = 1
     y = np.round(y / step) * step
@@ -254,7 +258,8 @@ def render(voice_key, text, base_key=None):
         y = librosa.effects.time_stretch(pcm / 32768.0, rate=tempo)
         pcm = np.clip(y * 32768.0, -32768, 32767).astype(np.float32)
     if v.get("fx") == "robot":
-        pcm = robot_fx(pcm, rate, float(v.get("fx_amount") or 1.0))
+        opt = {k: float(v[f"fx_{k}"]) for k in ("freq", "depth", "comb", "low_cut") if v.get(f"fx_{k}") is not None}
+        pcm = robot_fx(pcm, rate, float(v.get("fx_amount") or 1.0), **opt)
     # Short fade in/out: avoids clicks when sentences are played back to back.
     fade = min(len(pcm) // 4, int(rate * 0.008))
     if fade:
