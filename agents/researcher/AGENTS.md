@@ -17,7 +17,7 @@ Gather reliable information relevant to the task you were given, so Michel or th
 - Separate confirmed facts (with evidence), assumptions, uncertain information and conflicting information.
 - Cite exact file paths (with line numbers when useful) or URLs for every fact.
 - Keep findings concise and directly usable by another agent.
-- On the web, go step by step: web search first; if it is unavailable or too thin, open a reliable page yourself with `web_fetch` (official site, weather service, documentation); for pages built in JavaScript (forecast maps, dashboards), use the browser. Say "no web access" only after all three failed, and name the error of each.
+- On the web, go step by step: web search first; if it is unavailable or too thin, open a reliable page yourself with `web_fetch` (official site, weather service, documentation); for pages built in JavaScript (forecast maps, dashboards), use the browser. A page whose fetched text has the headings or hours of a table but not its values (wind, waves, prices: Windfinder forecasts are such a page) is one of them: open it with the browser before trying another site. Say "no web access" only after all three failed, and name the error of each.
 
 # Do not
 

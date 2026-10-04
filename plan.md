@@ -458,11 +458,16 @@ Défaut au passage : Michel a affiché ce diagnostic technique dans sa réponse 
 - 9b.4 Premier retour d'expérience réel (2026-10-03, 21 h 26–21 h 35, « météo marine pour demain matin ») : Michel
   Explore n'a pas pu lire Windfinder et s'est rabattu sur Météo Consult. Diagnostic : Windfinder remplit ses tableaux
   de prévisions en JavaScript ; `web_fetch` ne récupère que le texte (titre, observation actuelle, heures), pas les
-  valeurs de vent et de vagues. Explore a l'outil `browser` (Chrome sans écran) mais ses consignes ne citent que
-  `web_fetch`. Spot donné par l'utilisateur : https://fr.windfinder.com/forecast/port-de-cargese-port-toussaint-rochiccio
+  valeurs de vent et de vagues. ~~Explore a l'outil `browser` (Chrome sans écran) mais ses consignes ne citent que
+  `web_fetch`~~ (erreur de lecture : sa consigne citait déjà le navigateur). **Vraie cause, trouvée le 2026-10-04 : l'outil
+  `browser` était en panne pour tous les agents** — `executablePath` pointait sur `/usr/bin/brave-browser`, un script
+  qui lance le vrai Brave dans un autre processus ; OpenClaw refuse un navigateur qui « ne possède pas son point de
+  connexion CDP ». Corrigé (`/opt/brave.com/brave/brave`) : Explore lit le tableau Windfinder de Cargèse (vent, rafales,
+  direction, vagues, période, créneaux de 3 h). Consigne précisée (valeurs absentes du texte récupéré → navigateur).
+  Spot donné par l'utilisateur : https://fr.windfinder.com/forecast/port-de-cargese-port-toussaint-rochiccio
   (page vérifiée, valeurs absentes du HTML brut) ; les deux règles « météo marine » fusionnées en une, avec cette
-  adresse. Reste à faire : consigne d'Explore (pages construites en JavaScript → `browser`, page rendue), cas de test
-  « météo marine » (étape 10).
+  adresse. Reste à faire : cas de test « météo marine » (étape 10), pour que le navigateur ne puisse plus tomber en
+  panne sans qu'on le voie.
 
 **Fait quand** : garde-fous fondés sur un quota récent, compteur Claude visible, recherche par le sens active sans
 envoi des conversations à l'extérieur.

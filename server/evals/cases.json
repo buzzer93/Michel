@@ -327,6 +327,19 @@
       }
     },
     {
+      "id": "D06",
+      "category": "appel direct",
+      "type": "agent",
+      "agent": "researcher",
+      "text": "Quel vent est prévu demain matin à Cargèse d'après https://fr.windfinder.com/forecast/port-de-cargese-port-toussaint-rochiccio ? Donne la force en nœuds.",
+      "expect": {
+        "answerMatches": "(\\d|un|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|quinze|vingt)[^.]{0,12}(n(œ|oe)uds?|kts)",
+        "answerNotMatches": "pas pu|impossible|inaccessible|indisponible",
+        "noJsonBlock": true,
+        "approval": "none"
+      }
+    },
+    {
       "id": "T01",
       "category": "outils et approbations",
       "type": "agent",

@@ -201,7 +201,9 @@ config = {
               # Key-free search for web_search (plugin installed once with `openclaw plugins install
               # @openclaw/duckduckgo-plugin`): OpenAI's hosted search never showed up for the team.
               'web': {'search': {'provider': 'duckduckgo'}}},
-    'browser': {'enabled': True, 'executablePath': '/usr/bin/brave-browser', 'headless': True, 'evaluateEnabled': False},
+    # The real Brave binary, not /usr/bin/brave-browser: that is a shell wrapper whose child owns the debugging port,
+    # and OpenClaw refuses a browser that does not own its CDP endpoint (the browser tool failed for every agent).
+    'browser': {'enabled': True, 'executablePath': '/opt/brave.com/brave/brave', 'headless': True, 'evaluateEnabled': False},
     'plugins': {'slots': {'memory': 'memory-core'}, 'entries': {'memory-core': {'config': {'dreaming': {'enabled': False}}}, 'duckduckgo': {'enabled': True}}},
     'memory': {'search': {'extraPaths': [str(state / '.openclaw/workspace/USER.md')]}},
     # A new conversation each day at 04:00 (on the next message): the context stays short (it reached ~46,000
