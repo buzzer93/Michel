@@ -495,6 +495,9 @@ et le cas D06 qui le surveille. Tests unitaires 48 / 48.
   Avancement (2026-10-04) : ~~routage~~ relu avec l'utilisateur — R10 (« Michel Commande », ancien nom) gardé, R08
   confirmé (un Michel appelé par son nom répond lui-même), trois cas push-to-talk ajoutés (R17 sans prénom → Michel,
   R18 prénom dit → ce Michel, R19 « stop » pendant que Michel parle) : 19 / 19. Ajouté aussi D06 (navigateur, 9b.4).
+  ~~Délégation~~ relue : M01–M07 gardés ; M08 rendu générique (un numéro de version et sa source, plus de plage
+  24–29 qui casserait avec Node 30) ; ajoutés M09 « météo marine » (règle de l'utilisateur, Windfinder, navigateur),
+  M10 « retiens que… » (balise de proposition), M11 « à partir de maintenant… » (balise de règle) : 4 / 4.
 - 10.2 Ajout des cas venus de l'usage déjà vécu (bugs, incompréhensions connus).
 - 10.3 Mesure plus fiable : chaque cas joué plusieurs fois, un échec retenu seulement s'il se répète (coût en quota à
   décider).

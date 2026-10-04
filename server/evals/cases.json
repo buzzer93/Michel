@@ -299,7 +299,49 @@
         "delegatesTo": [
           "researcher"
         ],
-        "answerMatches": "\\b2[4-9]\\b|v2[4-9]",
+        "answerMatches": "(?=[\\s\\S]*\\bv?\\d{2,3}(\\.\\d+)+)(?=[\\s\\S]*(nodejs\\.org|site officiel))",
+        "approval": "none"
+      }
+    },
+    {
+      "id": "M09",
+      "category": "délégation",
+      "type": "agent",
+      "agent": "main",
+      "note": "règle de l'utilisateur (USER.md) : météo marine = Cargèse sur Windfinder ; dépend donc de cette machine",
+      "text": "Quelle est la météo marine pour demain matin ?",
+      "expect": {
+        "delegatesTo": [
+          "researcher"
+        ],
+        "answerMatches": "(\\d|un|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|quinze|vingt)[^.]{0,12}(n(œ|oe)uds?|kts)",
+        "answerNotMatches": "pas pu|impossible|inaccessible|indisponible",
+        "approval": "none"
+      }
+    },
+    {
+      "id": "M10",
+      "category": "délégation",
+      "type": "agent",
+      "agent": "main",
+      "note": "mémoire : une préférence dite par l'utilisateur devient une proposition à valider (balise lue par le serveur)",
+      "text": "Retiens que je préfère les réponses courtes.",
+      "expect": {
+        "noDelegation": true,
+        "answerMatches": "<proposer",
+        "approval": "none"
+      }
+    },
+    {
+      "id": "M11",
+      "category": "délégation",
+      "type": "agent",
+      "agent": "main",
+      "note": "règle de travail demandée par l'utilisateur : proposée, jamais appliquée sans son clic",
+      "text": "À partir de maintenant, quand je dis bilan, résume ma journée.",
+      "expect": {
+        "noDelegation": true,
+        "answerMatches": "<regle>",
         "approval": "none"
       }
     },
