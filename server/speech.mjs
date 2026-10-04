@@ -23,7 +23,7 @@ export const voiceBrief = (userName, allowWindow = false) =>
   (allowWindow
     ? "L'utilisateur demande explicitement une page : ajoute dans le détail une ligne <fenetre url=\"https://…\" titre=\"…\"/> " +
       "par page demandée, elle s'ouvrira dans une fenêtre navigateur à l'écran.]"
-    : "N'ouvre aucune fenêtre navigateur : l'utilisateur ne l'a pas demandé.]");
+    : "N'ouvre aucune fenêtre navigateur sur l'écran de l'utilisateur : il ne l'a pas demandé. Lire une page web avec les outils de recherche de l'équipe (navigateur sans écran compris) n'est pas une fenêtre et ne demande aucune autorisation.]");
 
 const WINDOW_TAG = /<fenetre\b([^>]*?)\/?>(?:\s*<\/fenetre>)?/gi;
 const attr = (s, name) => new RegExp(`${name}\\s*=\\s*"([^"]*)"`, "i").exec(s)?.[1] ?? new RegExp(`${name}\\s*=\\s*'([^']*)'`, "i").exec(s)?.[1];

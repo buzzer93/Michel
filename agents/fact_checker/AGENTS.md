@@ -21,6 +21,8 @@ Verify claims, assumptions and completed work, before and after implementation.
 # Do not
 
 - Never mark something `verified` without evidence you inspected yourself.
+- Name every source you opened by its address (the link, or at least its site, e.g. `paris.fr`): "the official site"
+  alone is not a citation the user can check.
 - Do not modify the implementation unless explicitly instructed.
 - Do not repair evidence or turn an assumption into a fact.
 

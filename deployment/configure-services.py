@@ -185,6 +185,9 @@ config = {
                      # 4 children alive, each child run is stopped after 10 minutes, and every spawn must name
                      # its target (no implicit "same agent" spawn).
                      'subagents': {'allowAgents': [], 'maxSpawnDepth': 1, 'maxChildrenPerAgent': 4, 'maxConcurrent': 2, 'runTimeoutSeconds': 600, 'requireAgentId': True},
+                     # An OpenAI "cyber" refusal stays a refusal: the automatic retry on Daybreak Blue (a model this
+                     # plan does not have) ended the turn with no answer at all (case S03, 2026-10-04).
+                     'embeddedAgent': {'cyberFailover': {'mode': 'off'}},
                      'models': {'ollama/qwen3.5:4b': {'params': {'temperature': 0.4, 'maxTokens': 512, 'keep_alive': '30m'}},
                                 # Claude (Pro subscription) only through Claude Code; OpenAI (API key) pinned to
                                 # OpenClaw's own runtime, never an external harness.

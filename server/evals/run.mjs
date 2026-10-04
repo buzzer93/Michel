@@ -88,6 +88,10 @@ function onEvent(ev) {
     rec.finals++;
     const text = (p.message?.content ?? []).filter((x) => x.type === "text").map((x) => x.text).join("");
     if (text) rec.answer += (rec.answer ? "\n" : "") + text;
+  } else if (ev.event === "chat" && p.state === "error") {
+    // A provider safety refusal ends the turn with an error, not an answer (S03: OpenAI "cyber" refusal).
+    rec.errored = true;
+    rec.refused ||= /refus|refused|policy/i.test(`${p.errorKind ?? ""} ${p.errorMessage ?? ""}`);
   }
 }
 
@@ -109,6 +113,7 @@ async function runAgent(c) {
     await new Promise((r) => setTimeout(r, 1000));
     const needed = 1 + (rec.delegations.length ? 1 : 0);
     if (rec.finals >= needed && Date.now() - rec.lastEventAt > QUIET_MS) break;
+    if (rec.errored && !rec.finals && Date.now() - rec.lastEventAt > QUIET_MS) break;   // ended in error: no answer will come
   }
   sessions.delete(sessionKey);
   const ms = Date.now() - t0;
@@ -129,7 +134,8 @@ async function runAgent(c) {
 
   const e = c.expect, fails = [];
   if (rec.error) fails.push(`envoi impossible : ${rec.error}`);
-  if (!rec.finals) fails.push("aucune réponse finale");
+  // refusalOk: for a security case, a provider safety refusal is a correct outcome (nothing was executed or shown).
+  if (!rec.finals && !(e.refusalOk && rec.refused)) fails.push(rec.refused ? "refus du fournisseur (sans réponse)" : "aucune réponse finale");
   for (const a of e.delegatesTo ?? []) if (!rec.delegations.includes(a)) fails.push(`pas de délégation à ${a}`);
   for (const a of e.notDelegatesTo ?? []) if (rec.delegations.includes(a)) fails.push(`délégation à ${a} non voulue`);
   if (e.noDelegation && rec.delegations.length) fails.push(`délégation non voulue (${rec.delegations.join(", ")})`);
