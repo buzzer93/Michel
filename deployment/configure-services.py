@@ -205,7 +205,9 @@ config = {
     # and OpenClaw refuses a browser that does not own its CDP endpoint (the browser tool failed for every agent).
     'browser': {'enabled': True, 'executablePath': '/opt/brave.com/brave/brave', 'headless': True, 'evaluateEnabled': False},
     'plugins': {'slots': {'memory': 'memory-core'}, 'entries': {'memory-core': {'config': {'dreaming': {'enabled': False}}}, 'duckduckgo': {'enabled': True}}},
-    'memory': {'search': {'extraPaths': [str(state / '.openclaw/workspace/USER.md')]}},
+    # Memory search vectors computed by the local Ollama (nomic-embed-text, 274 MB, pulled by OpenClaw if missing): past conversations
+    # are indexed on this machine, never sent out, and it works offline. (OpenAI embeddings would go through the API key.)
+    'memory': {'search': {'provider': 'ollama', 'model': 'nomic-embed-text', 'extraPaths': [str(state / '.openclaw/workspace/USER.md')]}},
     # A new conversation each day at 04:00 (on the next message): the context stays short (it reached ~46,000
     # tokens per voice exchange); what matters is kept by the memory.
     'session': {'reset': {'mode': 'daily', 'atHour': 4}},

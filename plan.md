@@ -451,10 +451,15 @@ Défaut au passage : Michel a affiché ce diagnostic technique dans sa réponse 
 - 9b.1 Quota : ne pas décider sur une valeur périmée (âge de `updatedAt` ; au-delà de quelques minutes, quota
   « inconnu » : la boucle ne se lance pas, l'affichage le signale) ; compter les réponses de Claude dans les traces et
   l'afficher (le quota Claude Pro, partagé avec Claude Code, n'est pas remonté par OpenClaw).
-- 9b.2 Mémoire : recherche par le sens rétablie avec des vecteurs calculés en local (Ollama), index reconstruit,
-  `openclaw memory status` propre.
-- 9b.3 Michel ne montre plus de diagnostic technique interne dans ses réponses (constaté deux fois le 2026-10-03 au
-  soir ; il dit aussi la recherche mémoire « bloquée » alors que seule la recherche par le sens l'est).
+- ~~9b.2 Mémoire : recherche par le sens rétablie avec des vecteurs calculés en local (Ollama), index reconstruit,
+  `openclaw memory status` propre.~~ Fait le 2026-10-04 : cause prouvée (le chemin de `USER.md` dans
+  `memory.search.extraPaths` avait changé avec le renommage) ; `memory.search.provider: "ollama"`,
+  `nomic-embed-text` (274 Mo, vecteurs de dimension 768) ; index reconstruit pour les huit agents en local (Michel :
+  81 fichiers sur 81 au lieu de 5, en 33 s), recherche par le sens active partout, aucune conversation envoyée dehors.
+- ~~9b.3 Michel ne montre plus de diagnostic technique interne dans ses réponses (constaté deux fois le 2026-10-03 au
+  soir ; il dit aussi la recherche mémoire « bloquée » alors que seule la recherche par le sens l'est).~~ Fait le
+  2026-10-04 : la cause (index désynchronisé, 9b.2) a disparu ; consigne de Michel : ne jamais transmettre les
+  diagnostics techniques d'un outil (commandes, codes d'erreur, états d'index), dire simplement ce qui manque.
 - 9b.4 Premier retour d'expérience réel (2026-10-03, 21 h 26–21 h 35, « météo marine pour demain matin ») : Michel
   Explore n'a pas pu lire Windfinder et s'est rabattu sur Météo Consult. Diagnostic : Windfinder remplit ses tableaux
   de prévisions en JavaScript ; `web_fetch` ne récupère que le texte (titre, observation actuelle, heures), pas les

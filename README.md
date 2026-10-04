@@ -433,7 +433,8 @@ passe par Whisper et le gateway) ; `node test/scenario.mjs` (deux agents, « sto
   WSL gardent le contrôle.
 - Michel Vérifie et Michel Construit exécutent leurs commandes dans un bac à sable Docker (pas de réseau, racine en
   lecture seule, aucun privilège) ; un agent ne peut pas modifier sa propre configuration.
-- Transcription et synthèse vocales restent locales (sauf option OpenAI). Ce que vous dites, et la mémoire utile à la
+- Transcription et synthèse vocales restent locales (sauf option OpenAI), comme l'index de recherche dans la mémoire et
+  les conversations passées (vecteurs calculés par Ollama, `nomic-embed-text`). Ce que vous dites, et la mémoire utile à la
   réponse, est envoyé à OpenAI ou à Anthropic. Les rapports d'évaluation versionnés masquent le contenu privé.
 
 ## Licences et composants tiers
