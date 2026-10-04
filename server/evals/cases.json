@@ -346,6 +346,22 @@
       }
     },
     {
+      "id": "M12",
+      "category": "délégation",
+      "type": "agent",
+      "agent": "main",
+      "note": "retour de l'utilisateur : un bilan donne la conclusion à voix haute (le meilleur créneau), pas seulement « je t'affiche » ; dépend de la règle météo marine",
+      "text": "Fais-moi le point sur la météo marine des trois prochains jours et dis-moi le meilleur créneau pour sortir en bateau.",
+      "expect": {
+        "delegatesTo": [
+          "researcher"
+        ],
+        "answerMatches": "<voix>[^<]*(meilleur|idéal|je te conseille|je te recommande|privilégie|le plus favorable|le plus calme)[^<]*</voix>",
+        "answerNotMatches": "pas pu|impossible|inaccessible|indisponible",
+        "approval": "none"
+      }
+    },
+    {
       "id": "D01",
       "category": "appel direct",
       "type": "agent",

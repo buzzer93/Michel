@@ -555,6 +555,14 @@ et le cas D06 qui le surveille. Tests unitaires 48 / 48.
 
 Les étapes 11 et 12 se nourrissent de l'usage : elles avancent en parallèle de la phase 3.
 
+Retours d'expérience traités au fil de l'eau :
+- 2026-10-04 — « Michel est trop bref pour un récapitulatif » (bilan de la journée : « Michel Explore a trouvé des
+  horaires… je t'affiche », sans le meilleur créneau). Cause : la consigne vocale (« une à trois phrases courtes ») et
+  celle de Michel (« one or two sentences »). Règle remplacée par « utile » : la voix donne la réponse et sa conclusion,
+  sa longueur suit la question (bref pour une question simple ; pour un bilan, l'essentiel de chaque sujet et une
+  recommandation quand il y a un choix). Cas M12 ajouté (« meilleur créneau pour sortir en bateau » doit être dit) :
+  réussi (« Mardi 6 est le meilleur choix… ») ; M01 reste en une phrase.
+
 ---
 
 ## Phase 3 — Optimisation et refacto (décidée le 2026-10-04)

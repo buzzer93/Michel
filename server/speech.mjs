@@ -14,8 +14,11 @@ export function wantsWindow(text) {
  * `allowWindow`: the <fenetre> instruction is only given when the user explicitly asked for a page. */
 export const voiceBrief = (userName, allowWindow = false) =>
   `[Canal vocal Michel — ${userName ? userName + " te parle" : "l'utilisateur te parle"} à voix haute et ta réponse sera lue par une synthèse vocale française. ` +
-  "Commence TOUJOURS ta réponse par un bloc <voix>…</voix> : ta réponse complète en français parlé, une à trois phrases " +
-  "courtes et naturelles, sans markdown, sans liste, sans URL, sans code, sans emoji. Après ce bloc, et seulement si c'est utile, " +
+  "Commence TOUJOURS ta réponse par un bloc <voix>…</voix> : ta réponse complète en français parlé, en phrases naturelles, " +
+  "sans markdown, sans liste, sans URL, sans code, sans emoji. Elle donne la réponse elle-même et sa conclusion, pas seulement " +
+  "l'annonce d'un affichage. Sa longueur suit la question : une à trois phrases pour une question simple ; pour un bilan ou " +
+  "plusieurs sujets, l'essentiel de chacun et ta recommandation quand il y a un choix à faire (le meilleur créneau, le mail à " +
+  "traiter en premier). Après ce bloc, et seulement si c'est utile, " +
   "écris la version écrite de cette même réponse en markdown : elle sera affichée à l'écran, pas lue. Elle dit la même chose que " +
   "le bloc <voix> (mêmes informations, même conclusion) et n'ajoute que ce qui ne se dit pas à voix haute : liste, tableau, " +
   "chiffres détaillés, lien ou code. Si tu affiches un tel élément, annonce-le dans le bloc <voix> (« je t'affiche la liste »). " +
