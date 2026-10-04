@@ -155,7 +155,7 @@
         "speaker_id": null,
         "length_scale": 1.06
       },
-      "note": "Homme grave : M5 (F0 ~86 Hz, le plus grave). Supertonic 3 depuis le 2026-09-24. Avant (bloc pockettts conserve) : Homme grave (F0 ~104 Hz), cadence de reference. Pocket TTS (Kyutai), timbre clone de morpheus_mk.wav (LibriVox, domaine public)",
+      "note": "Homme grave : M5 (F0 ~86 Hz, le plus grave). Voix de Michel et de Michel Organise depuis le 2026-10-04 (choix de l utilisateur : timbre partagé). Supertonic 3 depuis le 2026-09-24. Avant (bloc pockettts conserve) : Homme grave (F0 ~104 Hz), cadence de reference. Pocket TTS (Kyutai), timbre clone de morpheus_mk.wav (LibriVox, domaine public)",
       "openvoice": {
         "ref": "morpheus_mk.wav",
         "speed": 0.94
@@ -219,7 +219,7 @@
         "speaker_id": 1,
         "length_scale": 1.02
       },
-      "note": "Voix de Michel depuis le 2026-10-03 : Supertonic M4 (F0 ~124 Hz) + robot léger à modulation très rapide (300 Hz, au-dessus de la fondamentale : tintement métallique plutôt que bourdonnement ; profondeur 0.3, sans passage par zéro, pour garder l'intonation), résonance « casque » faible (fx_comb 0.15), grain numérique marqué (fx_amount 0.8 ≈ 12 bits), sans écho. Choisi à l'écoute par l'utilisateur après 7 séries : écho rejeté, M5 pitch 0.8-0.9 trop grave, M5 robot fort (profondeur 0.85) écarté. Identifiant conservé pour ne pas toucher config/agents.json, même si la voix n'est plus grave. Avant : M3 sans effet (robot à 42 Hz retiré le 2026-10-01, intonation écrasée).",
+      "note": "Voix de Michel du 2026-10-03 au 2026-10-04 (remplacée par fr-m-grave, M5 sans effet, à la demande de l utilisateur) : Supertonic M4 (F0 ~124 Hz) + robot léger à modulation très rapide (300 Hz, au-dessus de la fondamentale : tintement métallique plutôt que bourdonnement ; profondeur 0.3, sans passage par zéro, pour garder l'intonation), résonance « casque » faible (fx_comb 0.15), grain numérique marqué (fx_amount 0.8 ≈ 12 bits), sans écho. Choisi à l'écoute par l'utilisateur après 7 séries : écho rejeté, M5 pitch 0.8-0.9 trop grave, M5 robot fort (profondeur 0.85) écarté. Identifiant conservé pour ne pas toucher config/agents.json, même si la voix n'est plus grave. Avant : M3 sans effet (robot à 42 Hz retiré le 2026-10-01, intonation écrasée).",
       "fx": "robot",
       "fx_amount": 0.8,
       "fx_freq": 300,
