@@ -21,6 +21,8 @@ function Invoke-MichelSystemctl {
 }
 function Get-MichelHealth { return @{ Running = $script:Ready; Gateway = $script:Ready } }
 function Start-Sleep { }
+function Write-MichelLog { }
+function Start-MichelKeepAlive { }
 function Assert($Condition, $Message) { if (-not $Condition) { throw $Message } }
 
 # Already running: opens at once, never touches the services.
