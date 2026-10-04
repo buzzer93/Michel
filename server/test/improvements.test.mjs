@@ -3,7 +3,14 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { listImprovements, decideImprovement } from "../improvements.mjs";
+import { listImprovements, decideImprovement, quotaVerdict } from "../improvements.mjs";
+
+test("garde-fou du quota : une mesure trop vieille compte comme inconnue", () => {
+  assert.equal(quotaVerdict({ used: 17, ageMs: 79000 }, 50), null);                          // fresh and low: allowed
+  assert.equal(quotaVerdict({ used: 77, ageMs: 79000 }, 50), "quota à 77 % (au-dessus de 50 %)");
+  assert.equal(quotaVerdict({ used: 0, ageMs: 25 * 60000 }, 50), "quota non à jour (mesure de il y a 25 min)");   // the 2026-10-03 case
+  assert.equal(quotaVerdict({ used: 0, ageMs: Infinity }, 50), "quota non à jour (mesure de date inconnue)");
+});
 
 const LIVE = "# Identity\n\nOld rule.\n\n# Available agents (generated from agents/*/agent.json)\n\n- `planner`\n";
 

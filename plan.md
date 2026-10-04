@@ -448,9 +448,17 @@ Défaut au passage : Michel a affiché ce diagnostic technique dans sa réponse 
 
 ### Étape 9 bis — Fiabilité, en tête de la phase 2
 
-- 9b.1 Quota : ne pas décider sur une valeur périmée (âge de `updatedAt` ; au-delà de quelques minutes, quota
+- ~~9b.1 Quota : ne pas décider sur une valeur périmée (âge de `updatedAt` ; au-delà de quelques minutes, quota
   « inconnu » : la boucle ne se lance pas, l'affichage le signale) ; compter les réponses de Claude dans les traces et
-  l'afficher (le quota Claude Pro, partagé avec Claude Code, n'est pas remonté par OpenClaw).
+  l'afficher (le quota Claude Pro, partagé avec Claude Code, n'est pas remonté par OpenClaw).~~ Fait le 2026-10-04.
+  Mesuré : le gateway resert la même mesure (même `updatedAt` 30 s plus tard) ; aucun moyen trouvé de forcer une
+  mesure. `quotaVerdict` (testé) : une mesure de plus de 10 min compte comme inconnue, la boucle hebdomadaire ne
+  lance rien ; le panneau Modèle affiche l'âge de la mesure au-delà de 10 min et le nombre de réponses de Claude
+  (5 h, 7 j) lu dans les traces (24 sur 7 jours à cette date). Le vrai quota Claude ne serait remonté qu'avec une
+  connexion Anthropic enregistrée dans OpenClaw (décision de l'utilisateur, non faite). Incident pendant le test :
+  le service hebdomadaire a été lancé à la main pour vérifier le garde-fou ; quota frais et bas, il a démarré une
+  évaluation complète, arrêtée au bout de 4 min (fenêtre de 5 h : 8 % → 17 %, aucun rapport écrit). Le garde-fou
+  se teste désormais par `quotaVerdict`, jamais en lançant le service.
 - ~~9b.2 Mémoire : recherche par le sens rétablie avec des vecteurs calculés en local (Ollama), index reconstruit,
   `openclaw memory status` propre.~~ Fait le 2026-10-04 : cause prouvée (le chemin de `USER.md` dans
   `memory.search.extraPaths` avait changé avec le renommage) ; `memory.search.provider: "ollama"`,

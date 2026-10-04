@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, readdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { traceRecord, appendTrace, alertsFor, alertGate, answeredBy } from "../traces.mjs";
+import { traceRecord, appendTrace, alertsFor, alertGate, answeredBy, countReplies } from "../traces.mjs";
 
 const NOW = Date.parse("2026-10-02T10:00:00Z");
 const usage = {
@@ -23,6 +23,19 @@ test("trace : une ligne par demande, modèle réellement utilisé", () => {
     appendTrace(dir, t, NOW); appendTrace(dir, t, NOW);
     assert.deepEqual(readdirSync(dir).sort(), ["2026-10-02.jsonl", "notes.txt"]);
     assert.equal(readFileSync(join(dir, "2026-10-02.jsonl"), "utf8").trim().split("\n").length, 2);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("compteur Claude : réponses par période, lues dans les traces", () => {
+  const dir = mkdtempSync(join(tmpdir(), "michel-count-"));
+  try {
+    const line = (ts, model) => JSON.stringify({ ts, model }) + "\n";
+    writeFileSync(join(dir, "2026-10-02.jsonl"), line("2026-10-02T08:00:00Z", "anthropic/claude-sonnet-5-5"));
+    writeFileSync(join(dir, "2026-10-04.jsonl"), line("2026-10-04T08:00:00Z", "anthropic/claude-sonnet-5-5") + line("2026-10-04T09:30:00Z", "openai/gpt-6-astra")
+      + line("2026-10-04T09:45:00Z", "anthropic/claude-sonnet-5-5") + "pas du json anthropic/\n");
+    const now = Date.parse("2026-10-04T10:00:00Z");
+    assert.deepEqual(countReplies(dir, "anthropic/", { last5h: now - 5 * 3600000, week: now - 7 * 86400000 }), { last5h: 2, week: 3 });
+    assert.deepEqual(countReplies(join(dir, "absent"), "anthropic/", { last5h: now }), { last5h: 0 });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

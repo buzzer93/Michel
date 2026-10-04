@@ -21,7 +21,7 @@ import { approvalView, forbiddenReason, resolveMethod } from "./approvals.mjs";
 import { memoryStore } from "./memory.mjs";
 import { extractSelfEdits, addProposal, removeRule, instructionChange } from "./self-edit.mjs";
 import { listImprovements, decideImprovement } from "./improvements.mjs";
-import { traceRecord, appendTrace, alertsFor, alertGate, answeredBy } from "./traces.mjs";
+import { traceRecord, appendTrace, alertsFor, alertGate, answeredBy, countReplies } from "./traces.mjs";
 import { SYSTEM_STOP_UNIT_FILE, stopAllCommand } from "./system-control.mjs";
 
 const APP = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -679,7 +679,11 @@ async function refreshUsage() {
       balance: (p.billing ?? []).find((b) => b.type === "balance") ?? null,
     }));
     lastUsage = { models, providers };
-    broadcast({ t: "usage", models, providers });
+    // The gateway serves a cached snapshot: its time lets the page say when the quota is not fresh. Claude's Pro quota
+    // is not reported at all (Claude runs through Claude Code): the traces count its replies instead.
+    const now = Date.now();
+    const claude = countReplies(TRACES_DIR, "anthropic/", { last5h: now - 5 * 3600000, week: now - 7 * 86400000 });
+    broadcast({ t: "usage", models, providers, updatedAt: usage?.updatedAt ?? null, claude });
     checkAlerts();
   } catch (e) { debug("usage indisponible:", e?.message); }
 }

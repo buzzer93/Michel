@@ -1,7 +1,7 @@
 // Traces and alerts (plan step 6). One JSON line per user request in <dir>/<YYYY-MM-DD>.jsonl (kept 30 days): who
 // answered, with which model, what it delegated, which tools and approvals it went through, how long, how many
 // tokens. Alerts: plan quota nearly used, an agent answering on a fallback model, a request stuck for too long.
-import { appendFileSync, mkdirSync, readdirSync, rmSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
 const KEEP_DAYS = 30;
@@ -25,6 +25,23 @@ export function traceRecord(run, { agentName, usage, instructions = null, now = 
     ms: now - run.startedAt, tools: run.toolNames ?? [], toolCount: run.toolCount ?? 0,
     delegations: run.delegatedTo ?? [], approvals: run.approvals ?? [], instructions,
   };
+}
+
+/** Replies per model prefix ("anthropic/") in the traces since each given time: { [label]: count }. OpenClaw does not
+ * report the Claude Pro quota (Claude runs through Claude Code), so this count is the only view of its use. */
+export function countReplies(dir, prefix, since) {
+  const out = Object.fromEntries(Object.keys(since).map((k) => [k, 0]));
+  if (!existsSync(dir)) return out;
+  const oldest = Math.min(...Object.values(since));
+  for (const f of readdirSync(dir).filter((x) => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(x) && Date.parse(x.slice(0, 10)) >= oldest - 86400000)) {
+    for (const line of readFileSync(join(dir, f), "utf8").split("\n")) {
+      if (!line.includes(prefix)) continue;
+      let t; try { t = JSON.parse(line); } catch { continue; }
+      if (!String(t.model ?? "").startsWith(prefix)) continue;
+      for (const [k, s] of Object.entries(since)) if (Date.parse(t.ts) >= s) out[k]++;
+    }
+  }
+  return out;
 }
 
 /** Appends one trace and prunes the files older than KEEP_DAYS. */

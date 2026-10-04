@@ -6,6 +6,14 @@ import { join } from "node:path";
 
 const ROSTER = "\n# Available agents";
 
+/** Weekly loop guard: may a costly phase start? The gateway serves a cached quota snapshot, so an old measure counts
+ * as unknown. Returns null when allowed, else the reason (French, for the log). */
+export function quotaVerdict({ used, ageMs }, max, maxAgeMs = 10 * 60000) {
+  if (!(ageMs <= maxAgeMs)) return `quota non à jour (mesure de ${Number.isFinite(ageMs) ? `il y a ${Math.round(ageMs / 60000)} min` : "date inconnue"})`;
+  if (used > max) return `quota à ${used} % (au-dessus de ${max} %)`;
+  return null;
+}
+
 /** Light view of the latest records for the dashboard (newest first). */
 export function listImprovements(dir, limit = 3) {
   if (!existsSync(dir)) return [];

@@ -21,6 +21,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { GatewayClient } from "@openclaw/gateway-client";
 import { PROTOCOL_VERSION } from "@openclaw/gateway-protocol/version";
+import { quotaVerdict } from "../improvements.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const APP = join(HERE, "../..");
@@ -96,15 +97,18 @@ async function ask(agent, message, timeoutS = 300) {
   return rec.text;
 }
 /** Highest usage (%) among the plan windows of Michel's primary provider, as the gateway reports it. */
+// The gateway serves a cached snapshot (measured on 2026-10-04: same updatedAt for 30 s and more; on 2026-10-03 it still
+// said 0 % well after an evaluation had used the whole 5 h window): quotaVerdict treats an old measure as unknown.
 async function quotaUsed() {
   const usage = await gateway.request("usage.status", {}, { timeoutMs: 20000 });
   const provider = String(cfg.agents?.entries?.main?.model?.primary ?? "").split("/")[0];
-  return Math.max(0, ...((usage?.providers ?? []).find((p) => p.provider === provider)?.windows ?? []).map((w) => w.usedPercent ?? 0));
+  const used = Math.max(0, ...((usage?.providers ?? []).find((p) => p.provider === provider)?.windows ?? []).map((w) => w.usedPercent ?? 0));
+  return { used, ageMs: usage?.updatedAt ? Date.now() - usage.updatedAt : Infinity };
 }
 async function quotaAllows(max, what) {
-  const used = await quotaUsed();
-  if (used <= max) return true;
-  say(`quota à ${used} % (au-dessus de ${max} %) : ${what} reportée à la semaine prochaine`);
+  const refusal = quotaVerdict(await quotaUsed(), max);
+  if (!refusal) return true;
+  say(`${refusal} : ${what} reportée à la semaine prochaine`);
   return false;
 }
 if (weekly) {

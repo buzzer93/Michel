@@ -233,6 +233,12 @@ export class ModelPanel {
     if (m.contextTokens) parts.push(`contexte ${k(m.contextTokens)}${m.contextMax ? ` / ${k(m.contextMax)}` : ""} tokens`);
     if (p?.balance) parts.push(`crédit API ${p.balance.amount}${p.balance.unit && p.balance.unit !== "credits" ? ` ${p.balance.unit}` : ""}`);
     if (!p && m.provider !== "ollama") parts.push("consommation non remontée par ce fournisseur");
+    // The gateway caches the quota: say it when the measure is old (decisions on it would be wrong).
+    const ageMin = this.data.updatedAt ? Math.floor((Date.now() - this.data.updatedAt) / 60000) : null;
+    if (p && ageMin !== null && ageMin >= 10) parts.push(`quota mesuré il y a ${ageMin} min`);
+    // Claude (Pro subscription, shared with Claude Code) reports no quota: count of its replies from the traces.
+    const c = this.data.claude;
+    if (c?.week) parts.push(`Claude : ${c.last5h} réponse${c.last5h > 1 ? "s" : ""} sur 5 h, ${c.week} sur 7 j`);
     this.note.textContent = parts.join(" · ") || " ";
   }
 }
