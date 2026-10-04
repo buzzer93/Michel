@@ -553,6 +553,66 @@ et le cas D06 qui le surveille. Tests unitaires 48 / 48.
 
 **Fait quand** : une règle issue d'un retour d'expérience réel passe tout le cycle et améliore son cas sans régression.
 
+Les étapes 11 et 12 se nourrissent de l'usage : elles avancent en parallèle de la phase 3.
+
+---
+
+## Phase 3 — Optimisation et refacto (décidée le 2026-10-04)
+
+Proposée à partir de mesures (taille du code, code mort, temps de réponse réels), validée par l'utilisateur. Ordre :
+gains rapides, filet de sécurité, puis architecture. Une refacto ne change aucun comportement : chaque étape se
+termine par les tests unitaires, l'évaluation de routage (gratuite) et quelques cas réels.
+
+Mesure de départ (47 échanges vocaux réels, 7 jours) : transcription 0,4 s ; première phrase de la réponse 8,6 s ;
+**premier son 12,5 s** (≈ 4 s de synthèse de la première phrase, Supertonic à 16 étapes) ; total 15,9 s (médianes).
+
+### Étape 13 — Michel parle plus vite : banc d'essai des voix (A1, A2)
+
+- 13.1 Banc d'essai local et reproductible des moteurs de synthèse sur la machine : Supertonic (8, 12, 16 étapes),
+  Piper, Kokoro, Pocket TTS, OpenVoice, OpenAI (option de l'étape V). Mesures sur les mêmes phrases de réponse
+  typiques : temps jusqu'au premier son, facteur temps réel, intelligibilité (taux d'erreur de mots après
+  retranscription par Whisper, comme `tts/voice_qa.py`), mémoire. Les classements publics (Picovoice, Open TTS
+  Leaderboard, Artificial Analysis, TTSDS2) servent à choisir les candidats, pas à décider : ils mesurent surtout
+  l'anglais, sur d'autres machines.
+- 13.2 L'utilisateur écoute et choisit ; une même voix pour tous les Michel est acceptée.
+- 13.3 Première phrase courte demandée aux agents (la voix démarre pendant que la suite se synthétise).
+- 13.4 Les moteurs écartés sont retirés (code, services, documentation) ; un moteur de secours est gardé.
+
+**Fait quand** : premier son nettement plus tôt (mesuré sur des échanges réels), intelligibilité au moins égale.
+
+### Étape 14 — Une commande `michel` et du ménage (A3, A4, C3)
+
+- 14.1 `bin/michel` devient la commande de l'installation durcie (l'installation générique en services utilisateur
+  est retirée, décision de l'utilisateur) : `michel openclaw …` (sous le compte de service), `michel quota`,
+  `michel demander <agent> "…"` (session de test, jamais la conversation de l'utilisateur), `michel eval …`.
+- 14.2 Ménage : dépôt git imbriqué `server/.git` (reste d'installation) supprimé ; rapports d'évaluation archivés
+  (références gardées) ; phases terminées de ce plan déplacées dans `docs/journal/` ; README mis à jour.
+
+**Fait quand** : plus aucune longue commande `sudo runuser …` à taper ; dépôt sans reste ni doublon.
+
+### Étape 15 — Filet de sécurité (B1–B4, 10.3)
+
+- 15.1 Intégration continue GitHub : tests unitaires du serveur et de la lecture des nombres à chaque push.
+- 15.2 Dépendances Python figées (`requirements.txt`), installation reproductible.
+- 15.3 Évaluation : option pour rejouer les cas en échec (séparer le hasard d'un vrai défaut, 10.3).
+- 15.4 Jeton du gateway rangé hors de `openclaw.json` (SecretRefs).
+
+### Étape 16 — Architecture (C2, puis C1, par petites étapes)
+
+- 16.1 `configure-services.py` : une partie pure qui calcule la configuration voulue (testée) et une partie qui
+  l'applique ; mode `--dry-run` qui montre la différence avant d'appliquer.
+- 16.2 `server.mjs` (914 lignes, plus de 12 responsabilités) découpé en modules, un à la fois : pont avec le
+  gateway, échanges, état du dashboard (mémoire, améliorations, quota), routes web, alertes.
+
+**Fait quand** : comportement identique (tests, routage, cas réels), chaque module lisible et testable seul.
+
+---
+
+## Phase 4 — Recherche (après la phase 3)
+
+Nouvelle collecte de ressources par l'utilisateur sur l'IA agentique, la synthèse vocale et la transcription ; les
+mesures de la phase 3 servent de point de comparaison.
+
 ---
 
 ## Hors périmètre (déconseillé par le guide à notre échelle)
