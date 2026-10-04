@@ -9,7 +9,7 @@
   "fallbacks": ["anthropic/claude-sonnet-5-5"],
   "project": "read",
   "reviews": "implementer",
-  "tools": ["read", "exec", "web_fetch"],
+  "tools": ["read", "exec", "web_fetch", "web_search"],
   "exec": [
     { "pattern": "/opt/michel-node/bin/node", "argPattern": "^(?!.*\\.\\.)--test( (project|implementer-work)/[\\w./*-]+)+$" }
   ]

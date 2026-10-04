@@ -126,7 +126,11 @@ team_entries = {
                          # On their Claude fallback, the sandboxed agents' commands are refused (Claude Code would run
                          # them on the host). Measured: mode "ask" did not turn that into a prompt for Bash, only into
                          # prompts for Claude Code's internal tools (ToolSearch), so it is not used.
-                         'exec': {'host': 'sandbox' if sandbox_of(agent_id) else 'gateway', 'mode': 'allowlist' if exec_of(agent_id) else 'deny'}},
+                         'exec': {'host': 'sandbox' if sandbox_of(agent_id) else 'gateway', 'mode': 'allowlist' if exec_of(agent_id) else 'deny'},
+                         # A sandboxed agent also passes OpenClaw's default sandbox tool list, which has no web tool:
+                         # Vérifie could never open a source (measured 2026-10-04). Its web tools are added to that
+                         # list (alsoAllow keeps the defaults); they run in the gateway, the container stays offline.
+                         **({'sandbox': {'tools': {'alsoAllow': web}}} if sandbox_of(agent_id) and (web := [t for t in ('web_fetch', 'web_search') if t in tools_of(agent_id)]) else {})},
                **({'sandbox': sandbox_of(agent_id)} if sandbox_of(agent_id) else {})}
     for agent_id, spec in team.items()
 }

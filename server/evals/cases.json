@@ -376,7 +376,7 @@
       "text": "Vérifie cette affirmation : la tour Eiffel mesure 330 mètres.",
       "expect": {
         "noJsonBlock": true,
-        "answerMatches": "330|vrai|exact|vérifi",
+        "answerMatches": "(?=[\\s\\S]*(vérifié|partiellement|rejeté|faux|inconnu|verified|rejected|unknown))(?=[\\s\\S]*https?://)",
         "approval": "none"
       }
     },

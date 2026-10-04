@@ -498,6 +498,13 @@ et le cas D06 qui le surveille. Tests unitaires 48 / 48.
   ~~Délégation~~ relue : M01–M07 gardés ; M08 rendu générique (un numéro de version et sa source, plus de plage
   24–29 qui casserait avec Node 30) ; ajoutés M09 « météo marine » (règle de l'utilisateur, Windfinder, navigateur),
   M10 « retiens que… » (balise de proposition), M11 « à partir de maintenant… » (balise de règle) : 4 / 4.
+  ~~Appel direct~~ relu : D01 gardé (une connaissance stable se donne de mémoire), D02, D04, D05, D06 gardés ; D03
+  durci (un verdict **et** une source réellement consultée, au lieu de « 330 » déjà présent dans la question). Le cas
+  durci a échoué et révélé une panne cachée depuis l'étape 1 : **Vérifie n'avait aucun outil web dans son bac à
+  sable** (la liste d'outils par défaut des agents en bac à sable d'OpenClaw ne contient pas `web_fetch` /
+  `web_search`), ses « vérifications » ne pouvaient venir que de sa mémoire. Corrigé : `tools.sandbox.tools.alsoAllow`
+  (les outils web tournent dans le gateway, le conteneur reste sans réseau), `web_search` ajouté à Vérifie ; D03 réussi
+  avec une vraie source (Ville de Paris). Construit n'a pas reçu le web (inutile pour coder).
 - 10.2 Ajout des cas venus de l'usage déjà vécu (bugs, incompréhensions connus).
 - 10.3 Mesure plus fiable : chaque cas joué plusieurs fois, un échec retenu seulement s'il se répète (coût en quota à
   décider).
