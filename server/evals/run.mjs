@@ -37,7 +37,8 @@ const re = (s) => new RegExp(s, "i");
 // ───────────── routing cases: the voice router alone, with the deployed roster ─────────────
 function runRoute(c) {
   const agents = readAgentsFile(join(APP, "config/agents.json"));
-  const got = route(c.text, { agents, activeAgent: null, followUpUntil: 0, now: 1 });
+  // directTo: the push-to-talk case (the server passes Michel, who dispatches); speaking: an agent is talking.
+  const got = route(c.text, { agents, activeAgent: null, followUpUntil: 0, now: 1, directTo: c.directTo ?? null, speaking: c.speaking ?? false });
   const fails = [];
   if (got.kind !== c.expect.kind) fails.push(`type ${got.kind} au lieu de ${c.expect.kind}`);
   if (c.expect.agentId && got.agentId !== c.expect.agentId) fails.push(`agent ${got.agentId ?? "aucun"} au lieu de ${c.expect.agentId}`);

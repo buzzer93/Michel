@@ -158,6 +158,42 @@
       }
     },
     {
+      "id": "R17",
+      "category": "routage",
+      "type": "route",
+      "note": "push-to-talk : sans prénom, la phrase va à Michel (en mains libres, R11 l'ignore)",
+      "directTo": "main",
+      "text": "Il faudrait penser à acheter du pain.",
+      "expect": {
+        "kind": "message",
+        "agentId": "main"
+      }
+    },
+    {
+      "id": "R18",
+      "category": "routage",
+      "type": "route",
+      "note": "push-to-talk : un prénom dit reste un appel direct",
+      "directTo": "main",
+      "text": "Michel Écrit, lis mes mails",
+      "expect": {
+        "kind": "message",
+        "agentId": "agenda"
+      }
+    },
+    {
+      "id": "R19",
+      "category": "routage",
+      "type": "route",
+      "note": "push-to-talk pendant que Michel parle : « stop » coupe la voix",
+      "directTo": "main",
+      "speaking": true,
+      "text": "Stop",
+      "expect": {
+        "kind": "stop"
+      }
+    },
+    {
       "id": "M01",
       "category": "délégation",
       "type": "agent",
