@@ -446,7 +446,7 @@ OpenAI pour les vectoriser, via la clé API sans crédit. Proposé : vecteurs ca
 d'embedding, gratuit, hors ligne, conversations qui ne quittent pas la machine), ce qui prépare aussi l'étape 11.
 Défaut au passage : Michel a affiché ce diagnostic technique dans sa réponse ; il devrait le garder pour lui.
 
-### Étape 9 bis — Fiabilité, en tête de la phase 2
+### ~~Étape 9 bis — Fiabilité, en tête de la phase 2~~ ✅
 
 - ~~9b.1 Quota : ne pas décider sur une valeur périmée (âge de `updatedAt` ; au-delà de quelques minutes, quota
   « inconnu » : la boucle ne se lance pas, l'affichage le signale) ; compter les réponses de Claude dans les traces et
@@ -484,6 +484,9 @@ Défaut au passage : Michel a affiché ce diagnostic technique dans sa réponse 
 
 **Fait quand** : garde-fous fondés sur un quota récent, compteur Claude visible, recherche par le sens active sans
 envoi des conversations à l'extérieur.
+
+**Fait le 2026-10-04.** Les quatre points ci-dessus ; en prime, l'outil navigateur réparé pour tous les agents (9b.4)
+et le cas D06 qui le surveille. Tests unitaires 48 / 48.
 
 ### Étape 10 — Tri des cas d'usage et relecture des attentes
 
