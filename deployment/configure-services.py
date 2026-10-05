@@ -2,6 +2,7 @@ import json
 import os
 from pathlib import Path
 import pwd
+import re
 import secrets
 import shutil
 import subprocess
@@ -11,6 +12,75 @@ state = Path('/var/lib/michel')
 account = pwd.getpwnam('michel')
 if shutil.which('pkcheck') is None:
     raise SystemExit('PolicyKit requis pour le bouton Arrêter Michel : installez policykit-1.')
+if shutil.which('setfacl') is None:
+    raise SystemExit('ACL requises pour partager ~/code/michel avec l’utilisateur : installez acl.')
+
+# The user's code folder (decided 2026-10-04): Michel reads all of it, read-only, secrets hidden; Michel Construit
+# writes new projects in its michel/ subfolder only, which the user shares (ACL) to pick up the result.
+code_root = Path('/home/buzzer93/code')
+new_projects = code_root / 'michel'
+# The gateway cannot reach new_projects by its own path (ProtectHome), and OpenClaw's write tool resolves a sandbox
+# path to its Docker bind source: both use this host bind mount of it, outside /home (like /opt/michel for the repo).
+projects_mount = state / 'projets'
+code_owner = pwd.getpwuid(code_root.stat().st_uid).pw_name
+# Michel holds web_fetch: a prompt-injected page could make him read a secret and send it in a URL. Secret files and
+# folders are therefore made inaccessible inside his view, listed again at each deployment (a secret added since the
+# last one stays visible until the next). Templates (.env.example…) stay readable; dependencies are not searched.
+secret_file = re.compile(r'^(\.env(\..+)?|.*\.(pem|key|p12|pfx|jks|keystore|kdbx)|id_(rsa|dsa|ecdsa|ed25519)|\.npmrc|\.pypirc|'
+                         r'\.netrc|\.git-credentials|credentials.*\.json|.*secrets?\.(json|ya?ml|toml|ini|txt|env)|client_secret.*\.json)$', re.I)
+secret_dir = {'secrets', 'certs', '.ssh', '.aws', '.docker', '.gnupg'}
+template = re.compile(r'\.(example|sample|dist|template)$', re.I)
+skipped_dirs = {'node_modules', 'vendor', '.venv', 'venv', '__pycache__'}
+def code_secrets():
+    found = []
+    app_id = (app.stat().st_dev, app.stat().st_ino)   # /opt/michel is a bind mount of a folder of ~/code
+    for folder, dirs, files in os.walk(code_root):
+        folder = Path(folder)
+        found += [folder / name for name in dirs if name in secret_dir]
+        if '.git' in dirs:
+            found.append(folder / '.git/config')   # remote URLs can carry a token
+        if (folder.stat().st_dev, folder.stat().st_ino) == app_id:
+            found.append(folder / 'config')       # this project's own secrets (access code, settings)
+            dirs.remove('config')
+        dirs[:] = [name for name in dirs if name not in secret_dir | skipped_dirs | {'.git'}]
+        found += [folder / name for name in files if secret_file.match(name) and not template.search(name)]
+    return sorted(path for path in found if path.exists())
+def unit_path(path):
+    """One systemd path argument, quoted (folder names with spaces), optional ("-": a file deleted since is no error)."""
+    return '"-' + str(path).replace('\\', '\\\\').replace('"', '\\"').replace('%', '%%') + '"'
+def code_view(target, hidden):
+    """Read-only view of ~/code at target (a folder of an agent workspace), secrets hidden."""
+    target.mkdir(parents=True, exist_ok=True)
+    return [f'BindReadOnlyPaths=-{code_root}:{target}',
+            *(f'InaccessiblePaths={unit_path(target / path.relative_to(code_root))}' for path in hidden)]
+manifests = {'package.json', 'composer.json', 'pyproject.toml', 'requirements.txt', 'Cargo.toml', 'go.mod', 'pom.xml',
+             'build.gradle', 'Gemfile', 'Makefile'}
+def code_index(hidden):
+    """Map of ~/code for Michel, whose only file tool is read (no directory listing; OpenClaw's dir_list needs a paired
+    node): each project (a folder with .git or a manifest, at most 3 levels down) and its top-level entries, secrets
+    left out. Rebuilt with the hidden list at each deployment."""
+    hidden = set(hidden)
+    def listed(folder):
+        try:
+            return sorted(os.listdir(folder), key=str.lower)
+        except OSError:
+            return []
+    lines = []
+    def visit(folder, depth):
+        names = listed(folder)
+        if depth and (depth == 3 or '.git' in names or manifests & set(names)):
+            shown = [name + '/' if (folder / name).is_dir() else name for name in names
+                     if folder / name not in hidden and name not in skipped_dirs | {'.git'}]
+            lines.append(f'- `code/{folder.relative_to(code_root)}/` : ' + ', '.join(shown[:60]) + (' …' if len(shown) > 60 else ''))
+            return
+        for name in names:
+            child = folder / name
+            if child.is_dir() and not child.is_symlink() and child not in hidden and name not in skipped_dirs and not name.startswith('.'):
+                visit(child, depth + 1)
+    visit(code_root, 0)
+    return ('# Carte de code/ (projets de l’utilisateur, ~/code, lecture seule)\n\n'
+            'Chaque projet et ce qu’il contient à sa racine (dossiers terminés par /), refaite à chaque déploiement :\n'
+            'un projet plus récent n’y est pas encore, essaie alors son chemin directement.\n\n' + '\n'.join(lines) + '\n')
 
 def owned_write(path, content, mode=0o600):
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -99,12 +169,21 @@ def sandbox_of(agent_id):
         binds += [f'{app / name}:{root}/project/{name}:ro' for name in project_paths if (app / name).exists()]
     if spec.get('reviews'):
         binds.append(f'{workspace_of(spec["reviews"]) / "project"}:{root}/{spec["reviews"]}-work:ro')
+    env = {'HOME': '/tmp'}
+    if spec['project'] == 'clone':
+        # New projects (~/code/michel), writable; a repository created there has no git identity of its own.
+        binds.append(f'{projects_mount}:{root}/michel')
+        env.update({f'GIT_{who}_{field}': value for who in ('AUTHOR', 'COMMITTER')
+                    for field, value in (('NAME', f'{spec["name"]} (OpenClaw)'), ('EMAIL', f'{agent_id}@localhost'))})
+        # Its files there are handed over to the user every minute (michel-projets.timer): git must accept a
+        # repository owned by someone else. Command-line config, so only inside this isolated container.
+        env.update(GIT_CONFIG_COUNT='1', GIT_CONFIG_KEY_0='safe.directory', GIT_CONFIG_VALUE_0='*')
     docker = {'image': SANDBOX_IMAGE, 'user': f'{account.pw_uid}:{account.pw_gid}', 'network': 'none', 'readOnlyRoot': True,
-              'tmpfs': ['/tmp', '/var/tmp', '/run'], 'capDrop': ['ALL'], 'env': {'HOME': '/tmp'}, 'binds': binds}
+              'tmpfs': ['/tmp', '/var/tmp', '/run'], 'capDrop': ['ALL'], 'env': env, 'binds': binds}
     if binds:
-        # The project views come from outside the agent workspace (/opt/michel) and land under /agent: both are
-        # refused by default. They are read-only code and docs (never config/, certs/ or .git); OpenClaw still
-        # blocks system paths, credential folders and the Docker socket.
+        # The project views come from outside the agent workspace (/opt/michel, ~/code/michel) and land under
+        # /workspace: both are refused by default. They are code and docs (never config/, certs/ or .git of the live
+        # repository); OpenClaw still blocks system paths, credential folders and the Docker socket.
         docker.update(dangerouslyAllowExternalBindSources=True, dangerouslyAllowReservedContainerTargets=True)
     # Always the agent's own workspace at /workspace: its project/ and *-work mountpoints already exist there (created
     # below for the systemd views). With "ro", OpenClaw would use an empty separate workspace in which Docker Desktop
@@ -308,6 +387,54 @@ for directory in [state / '.openclaw', workspace, *tool_workspaces, *map(workspa
 # The implementer works in its own clone (branch agents/implementer), never in the live repository.
 # It is created once from the last commit of the project and then left alone: the user reviews and merges.
 as_michel = ['runuser', '-u', 'michel', '--', 'env', 'HOME=/var/lib/michel']
+# New projects: the user's folder, writable by michel through ACL entries that new files inherit. OpenClaw's write
+# tool still creates files in mode 600, which empties their ACL mask (the user's entry then grants nothing) and git
+# refuses a repository owned by michel: michel-projets.timer (below) hands everything back to the user each minute.
+new_projects.mkdir(exist_ok=True)
+owner = pwd.getpwnam(code_owner)
+os.chown(new_projects, owner.pw_uid, owner.pw_gid)
+subprocess.run(['setfacl', '-R', '-m', f'u:{code_owner}:rwX,u:michel:rwX,m::rwX', str(new_projects)], check=True)
+subprocess.run(['find', str(new_projects), '-type', 'd', '-exec', 'setfacl', '-m', f'd:u:{code_owner}:rwX,d:u:michel:rwX,d:m::rwX', '{}', '+'], check=True)
+projects_mount.mkdir(exist_ok=True)
+projects_unit = 'var-lib-michel-projets.mount'   # systemd names a mount unit after its path
+(Path('/etc/systemd/system') / projects_unit).write_text(f'''[Unit]
+Description=Michel - nouveaux projets de Michel Construit ({new_projects}), hors de /home pour le gateway
+[Mount]
+What={new_projects}
+Where={projects_mount}
+Type=none
+Options=bind
+[Install]
+WantedBy=multi-user.target
+''')
+# Root, as only root can give a file to another user; -P: symbolic links written by an agent are never followed.
+(Path('/etc/systemd/system') / 'michel-projets.service').write_text(f'''[Unit]
+Description=Michel - rend a {code_owner} les fichiers ecrits par Michel Construit dans {new_projects}
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/setfacl -R -P -m u:{code_owner}:rwX,u:michel:rwX,m::rwX {new_projects}
+ExecStart=/usr/bin/chown -R -P {code_owner}:{code_owner} {new_projects}
+CapabilityBoundingSet=CAP_CHOWN CAP_FOWNER CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths={new_projects}
+PrivateNetwork=true
+PrivateTmp=true
+''')
+(Path('/etc/systemd/system') / 'michel-projets.timer').write_text('''[Unit]
+Description=Michel - nouveaux projets rendus a l utilisateur, chaque minute
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=10s
+[Install]
+WantedBy=timers.target
+''')
+subprocess.run(['systemctl', 'daemon-reload'], check=True)
+subprocess.run(['systemctl', 'enable', '--now', projects_unit, 'michel-projets.timer'], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+hidden_code = code_secrets()
+for directory in [workspace, candidate_ws]:
+    owned_write(directory / 'code-index.md', code_index(hidden_code))
 bind_mounts = []
 for agent_id, spec in team.items():
     project = workspace_of(agent_id) / 'project'
@@ -317,6 +444,9 @@ for agent_id, spec in team.items():
             subprocess.run([*as_michel, 'git', '-C', str(project), 'switch', '--quiet', '-c', 'agents/implementer'], check=True)
             for key, value in [('user.name', f'{spec["name"]} (OpenClaw)'), ('user.email', 'implementer@localhost')]:
                 subprocess.run([*as_michel, 'git', '-C', str(project), 'config', key, value], check=True)
+        target = workspace_of(agent_id) / 'michel'
+        target.mkdir(exist_ok=True)
+        bind_mounts.append(f'BindPaths={projects_mount}:{target}')
     elif spec['project'] == 'read':
         for name in project_paths:
             source, target = app / name, project / name
@@ -332,6 +462,8 @@ for agent_id, spec in team.items():
         # Its instructions stay read-only for the gateway: the coordinator holds write tools (see tools_of).
         for name in ['SOUL.md', 'AGENTS.md', 'IDENTITY.md', 'USER.md', 'MEMORY.md']:
             bind_mounts.append(f'BindReadOnlyPaths={workspace_of(agent_id) / name}')
+        # Only the coordinator reads the user's other projects: it passes the relevant excerpt to a specialist.
+        bind_mounts += code_view(workspace_of(agent_id) / 'code', hidden_code)
     if spec.get('reviews'):
         target = workspace_of(agent_id) / f'{spec["reviews"]}-work'
         target.mkdir(parents=True, exist_ok=True)
@@ -349,6 +481,7 @@ for name in project_paths:
     bind_mounts.append(f'BindReadOnlyPaths={source}:{target}')
 for name in ['SOUL.md', 'AGENTS.md', 'IDENTITY.md', 'USER.md', 'MEMORY.md']:
     bind_mounts.append(f'BindReadOnlyPaths={candidate_ws / name}')
+bind_mounts += code_view(candidate_ws / 'code', hidden_code)
 subprocess.run(['chown', '-R', 'michel:michel', *[str(workspace_of(agent_id)) for agent_id in team], str(candidate_ws)], check=True)
 
 hardening = '''
@@ -407,6 +540,7 @@ gateway_unit = '''[Unit]
 Description=Michel - OpenClaw Gateway local
 After=network.target michel-ollama.service
 Wants=michel-ollama.service
+RequiresMountsFor=/var/lib/michel/projets
 [Service]
 ''' + hardening + '''
 SupplementaryGroups=docker

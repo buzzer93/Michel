@@ -142,13 +142,13 @@ niveau. Chacun répond aussi à l'appel vocal direct, avec sa voix.
 
 | Agent | Rôle |
 |---|---|
-| **Michel** | assistant, chef d'équipe ; lit le projet en lecture seule, n'exécute aucune commande |
+| **Michel** | assistant, chef d'équipe ; lit le projet et tout `~/code` en lecture seule (secrets masqués), n'exécute aucune commande |
 | Michel Écrit | mail et agenda (Gmail, Google Calendar, via `gog`) |
 | Michel Compile | GitHub (`gh`) et Docker |
 | Michel Explore | recherche web et sources (DuckDuckGo) |
 | Michel Organise | plans d'action |
 | Michel Vérifie | vérification et tests, dans un bac à sable Docker |
-| Michel Construit | modifie le code dans son propre clone du projet, dans un bac à sable Docker |
+| Michel Construit | modifie le code dans son propre clone du projet, ou crée un nouveau projet dans `~/code/michel/`, dans un bac à sable Docker |
 
 **Modèles** : tous répondent avec OpenAI `gpt-6-astra` (clé API, puis abonnement ChatGPT) et passent sur Claude
 `claude-sonnet-5-5` (abonnement Pro, via Claude Code) quand OpenAI est épuisé ou injoignable ; Michel a en dernier
@@ -262,6 +262,7 @@ aux dossiers personnels.
 |---|---|
 | `~/code/…/openclaw-vocal-assistants` | le dépôt, côté WSL |
 | `/opt/michel` | montage du dépôt (`opt-michel.mount`), lu par les services ; aucune seconde copie du code |
+| `/var/lib/michel/projets` | montage de `~/code/michel` (nouveaux projets de Michel Construit), hors de `/home` pour le gateway |
 | `/opt/michel-node`, `/opt/michel-ollama` | Node.js 24 et Ollama |
 | `/var/lib/michel` | compte `michel` : état et conversations OpenClaw (`.openclaw`), connexions, traces, fiches d'amélioration |
 
@@ -272,7 +273,7 @@ aux dossiers personnels.
 2. En tant que `michel` : `deployment/install-app.sh` (whisper.cpp, environnement Python, serveur web, OpenClaw),
    `deployment/build-whisper.sh` (compilation CUDA), `deployment/download-voices.py`,
    `deployment/prefetch-supertonic.py`.
-3. En root : `deployment/install-agent-tools.py` (`gog`, `gh`, Docker, Claude Code).
+3. En root : `deployment/install-agent-tools.py` (`gog`, `gh`, Docker, Claude Code), et `apt install acl`.
 4. Connexions, en tant que `michel` : abonnement ChatGPT (`openclaw models auth login --provider openai`), Claude
    Code, Gmail et Google Calendar (`gog`), GitHub (`gh`).
 5. En root : `python3 /opt/michel/deployment/configure-services.py`. Le script écrit la configuration d'OpenClaw (la
@@ -428,6 +429,11 @@ passe par Whisper et le gateway) ; `node test/scenario.mjs` (deux agents, « sto
 - Installation de référence : tous les services écoutent sur la boucle locale ; aucun port n'est ouvert vers le
   réseau. Un code d'accès de 64 caractères protège l'accès réseau quand il est activé ; les noms d'hôte et les
   origines WebSocket étrangers sont rejetés.
+- Michel lit `~/code` en lecture seule ; les `.env*`, `.git/config`, clés et dossiers `secrets/`, `certs/`, `.ssh/`
+  y sont rendus inaccessibles (liste refaite à chaque `configure-services.py` : un secret ajouté depuis reste visible
+  jusqu'au suivant). Michel n'ayant pas d'outil pour lister un dossier, le déploiement lui écrit une carte des projets
+  (`code-index.md`). Seul Michel Construit écrit, et seulement dans `~/code/michel/` : ses fichiers vous sont rendus
+  (propriétaire et droits) en moins d'une minute par `michel-projets.timer`, il garde l'écriture par ACL.
 - Les services sont privés d'accès aux disques Windows et aux dossiers personnels ; les consignes de Michel sont en
   lecture seule pour le gateway. Ce durcissement n'est pas une machine virtuelle : Windows et les administrateurs
   WSL gardent le contrôle.

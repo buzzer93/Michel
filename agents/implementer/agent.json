@@ -4,13 +4,13 @@
   "role": "specialist",
   "tagline": "modifie le code",
   "voice": "fr-m-artisan",
-  "description": "Performs technical changes in its own git clone of the project (branch agents/implementer), runs tests, commits. Never touches the live repository.",
+  "description": "Performs technical changes in its own git clone of the project (branch agents/implementer), or creates a new project under michel/<name> (the user's ~/code/michel); runs tests, commits. Never touches the live repository.",
   "model": "openai/gpt-6-astra",
   "fallbacks": ["anthropic/claude-sonnet-5-5"],
   "project": "clone",
   "tools": ["read", "write", "edit", "apply_patch", "exec"],
   "exec": [
-    { "pattern": "/opt/michel-node/bin/node", "argPattern": "^(?!.*\\.\\.)--test( project/[\\w./*-]+)+$" },
-    { "pattern": "/usr/bin/git", "argPattern": "^(?!.*\\.\\.)-C project (?!.*--output)(status|diff|log|show|add|commit)( |$)" }
+    { "pattern": "/opt/michel-node/bin/node", "argPattern": "^(?!.*\\.\\.)--test( (project|michel)/[\\w./*-]+)+$" },
+    { "pattern": "/usr/bin/git", "argPattern": "^(?!.*\\.\\.)-C (project|michel/[\\w-]+) (?!.*--output)(init|status|diff|log|show|add|commit)( |$)" }
   ]
 }

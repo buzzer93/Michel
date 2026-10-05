@@ -362,6 +362,20 @@
       }
     },
     {
+      "id": "M13",
+      "category": "délégation",
+      "type": "agent",
+      "agent": "main",
+      "note": "Michel lit les autres projets de l'utilisateur (code/, ~/code en lecture seule) lui-même, sans déléguer : les spécialistes ne voient pas code/",
+      "text": "Dans mon projet Mykanban, rangé dans code/perso, quel framework est utilisé ?",
+      "expect": {
+        "noDelegation": true,
+        "answerMatches": "Symfony",
+        "answerNotMatches": "pas accès|pas pu|impossible|inaccessible",
+        "approval": "none"
+      }
+    },
+    {
       "id": "D01",
       "category": "appel direct",
       "type": "agent",
