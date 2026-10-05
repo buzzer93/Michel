@@ -78,6 +78,18 @@ export function takeSentences(buf, flush = false) {
   return [out.filter((s) => /[\p{L}\p{N}]/u.test(s)), rest];
 }
 
+/** Runs tasks one at a time, in call order. The synthesis services render one sentence at a time: sent all at once,
+ * the sentences of a long answer queued there until their 30 s timeout ran out, and the end of a recap (sometimes all
+ * of it) was never spoken (plan 13b.1). A task whose `skip()` is true when its turn comes resolves to null unrun. */
+export function serialQueue() {
+  let tail = Promise.resolve();
+  return (task, skip = () => false) => {
+    const job = tail.then(() => (skip() ? null : task()));
+    tail = job.catch(() => {});
+    return job;
+  };
+}
+
 /** OpenClaw appends a runtime notice to a reply given by a fallback model ("↪️ Model Fallback: ollama/qwen3.5:4b
  * (selected openai/…; timeout …)"). It is for operators: the dashboard's model panel and alert already say it. */
 export const stripRuntimeNotices = (t) => t.replace(/\s*(?:↪\uFE0F?\s*)?Model Fallback:[^\n]*/g, "");

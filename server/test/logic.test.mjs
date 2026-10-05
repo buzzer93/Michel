@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { route, findCall, echoScore } from "../router.mjs";
 import { spawnTarget, activeSubagents } from "../tools.mjs";
-import { ReplyStream, takeSentences, cleanForSpeech, wantsWindow, voiceBrief, historyEntries } from "../speech.mjs";
+import { ReplyStream, takeSentences, cleanForSpeech, wantsWindow, voiceBrief, historyEntries, serialQueue } from "../speech.mjs";
 
 // Fixture = the example team shipped with the repo (config/agents.example.json), so the assertions
 // below hold whatever the local config/agents.json says.
@@ -162,4 +162,24 @@ test("délégations : agent visé par sessions_spawn, sous-agents encore actifs"
     { key: "agent:fact_checker:subagent:77", sessionInfo: { hasActiveRun: true } },
   ]);
   assert.deepEqual([...live].sort(), ["fact_checker", "researcher"]);
+});
+
+test("synthèse : une phrase à la fois, dans l'ordre ; phrase sautée après « stop » ; une erreur ne bloque pas", async () => {
+  const queue = serialQueue();
+  let running = 0, peak = 0;
+  const order = [];
+  const task = (name, fail = false) => async () => {
+    running++; peak = Math.max(peak, running);
+    await new Promise((r) => setTimeout(r, 5));
+    running--; order.push(name);
+    if (fail) throw new Error(name);
+    return name;
+  };
+  let muted = false;
+  const jobs = [queue(task("a")), queue(task("b", true)), queue(task("c"), () => muted), queue(task("d"))];
+  muted = true; // the user said stop before "c" got its turn
+  const results = await Promise.allSettled(jobs);
+  assert.equal(peak, 1);
+  assert.deepEqual(order, ["a", "b", "d"]);
+  assert.deepEqual(results.map((r) => r.status === "fulfilled" ? r.value : "erreur"), ["a", "erreur", null, "d"]);
 });

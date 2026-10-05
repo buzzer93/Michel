@@ -12,7 +12,7 @@ import { WebSocketServer } from "ws";
 import { GatewayClient } from "@openclaw/gateway-client";
 import { PROTOCOL_VERSION } from "@openclaw/gateway-protocol/version";
 import { route } from "./router.mjs";
-import { ReplyStream, voiceBrief, cleanForSpeech, extractWindows, wantsWindow, historyEntries } from "./speech.mjs";
+import { ReplyStream, voiceBrief, cleanForSpeech, extractWindows, wantsWindow, historyEntries, serialQueue } from "./speech.mjs";
 import { describeTool, spawnTarget, activeSubagents } from "./tools.mjs";
 import { BrowserWindows } from "./browser.mjs";
 import { loadAgents, readTeamTaglines, delegationTargets, buildSttPrompt, assignVoices, readVoiceIds, slug, PALETTE } from "./agents.mjs";
@@ -392,8 +392,9 @@ function speak(run, sentences) {
     const seq = ++saySeq;
     const first = !run.firstSentenceAt;
     if (first) run.firstSentenceAt = Date.now();
-    // Synthesis starts immediately (parallel), delivery stays ordered through the chain.
-    const audio = synth(run.agentId, sentence).catch((e) => { log("tts error:", e.message); return null; });
+    // Synthesis is queued now (one sentence at a time, see serialQueue) and skipped once the user has said stop;
+    // delivery stays ordered through the chain.
+    const audio = synth(run.agentId, sentence, () => run.muted).catch((e) => { log("tts error:", e.message); return null; });
     if (first) audio.then((wav) => { if (wav) run.firstAudioAt = Date.now(); });
     run.sayChain = run.sayChain.then(async () => {
       if (run.muted) return;
@@ -403,7 +404,9 @@ function speak(run, sentences) {
   }
 }
 
-async function synth(agentId, text) {
+const synthQueue = serialQueue();
+const synth = (agentId, text, skip) => synthQueue(() => synthOne(agentId, text), skip);
+async function synthOne(agentId, text) {
   const res = await fetch(`${settings.ttsUrl}/tts`, {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ agent: agentId, voice: voiceOf.get(agentId), text }), signal: AbortSignal.timeout(30000),

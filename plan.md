@@ -640,6 +640,17 @@ Pas une refacto : cette étape change le comportement, avec un cas d'évaluation
   que son `runId` est déjà dans `finishedRuns`, échange clos par `finishRun` avant sa réponse, phrase coupée par
   l'interruption de la voix (`stopSpeech`) ou par la file de lecture côté page. Corriger la cause, pas le symptôme.
   À faire avant 13b.3, qui demande à Michel de parler plusieurs fois.
+  **Cause trouvée le 2026-10-05**, dans le journal de `michel-web` et des services de synthèse, sans aucune des pistes
+  ci-dessus : les réponses perdues sont les **longues** (récaps). `speak()` envoyait toutes les phrases d'un coup au
+  service de synthèse, qui les rend une par une (2,5 à 8 s chacune) ; les dernières de la file dépassaient leur délai
+  de 30 s et n'étaient jamais dites (« tts error: … timeout », 8 phrases perdues à 13 h 13), et le service continuait
+  à calculer ces phrases abandonnées, retardant la réponse suivante (le 04/10 à 23 h 14, réponse entière perdue).
+  Une demande qui délègue se termine bien sans texte (« 1re phrase — »), la réponse arrivant au tour suivant :
+  ce n'était pas une perte. Corrigé : file `serialQueue` (`speech.mjs`, testée) — une phrase envoyée à la fois, le
+  délai ne couvre plus que la synthèse, les phrases d'une réponse arrêtée par « stop » sont sautées. Reproduit sur le
+  vrai service avec un récap de 14 phrases : avant **9 perdues sur 14**, après **0 sur 14** (synthèse ~2× plus rapide
+  que la lecture : pas de silence après la première phrase). Tests unitaires 49 / 49. Reste le critère : dix
+  échanges réels d'affilée, récaps compris, tous dits (à constater à l'usage par l'utilisateur).
 - 13b.2 **Mesurer pourquoi Michel attend le plus lent de ses agents** (récapitulatif : Michel Écrit répond bien
   avant Michel Explore, mais Michel ne dit rien avant la fin d'Explore). Cause probable, à confirmer : OpenClaw
   regroupe les agents lancés dans un même tour de Michel et ne le réveille qu'une fois tout le lot fini (« the frozen
