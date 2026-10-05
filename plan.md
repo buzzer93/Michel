@@ -658,6 +658,18 @@ Pas une refacto : cette étape change le comportement, avec un cas d'évaluation
   un rendu agent par agent) ; les consignes de Michel (« wait for the completion announce ») vont dans le même sens.
   Le serveur vocal, lui, sait déjà dire une réponse non sollicitée (`runFor`). Mesure : heures de fin de chaque
   agent et heure de la réponse de Michel, sur un récapitulatif mails + météo en session d'évaluation.
+  ~~Mesuré le 2026-10-05~~ (récap « mails non lus + météo de demain », session d'évaluation, transcriptions et journal
+  du gateway). **Regroupement confirmé** : Michel est réveillé une seule fois (« Every subagent in this batch has now
+  settled », provenance `subagent_settle`), 1 s après la fin du **dernier** agent ; il a attendu Écrit 13 s après la
+  fin d'Explore. Où part le temps (124 s au total) : annonce de Michel dite à +5 s ; Écrit (12 commandes `gog`) et
+  Explore finissent à +85 s et +72 s, dont 24 à 32 s à **rédiger leur rapport** (2 500 à 3 600 caractères) ; synthèse de
+  Michel ~37 s (2 968 caractères, la voix commence dès sa première phrase). Piste « native » testée et **réfutée** : la
+  documentation d'OpenClaw laisse entendre que sans `sessions_yield` chaque agent réveillerait Michel ; sur le candidat
+  (consigne, puis outil retiré par la configuration, les deux restaurés ensuite), le lot reste groupé (fins à 10 s
+  d'écart, un seul réveil). En prime : l'outil `sessions_spawn` d'OpenClaw ajoute à chaque appel « Wait for completion
+  events for ALL required children… », une consigne du runtime qui l'emporte sur la nôtre (le candidat a appelé
+  `sessions_yield` malgré l'interdiction écrite). Conclusion : 13b.3 (relais par le serveur) reste la voie ; levier
+  complémentaire mesuré : des rapports d'agents plus courts avancent d'autant le réveil de Michel.
 - 13b.3 Si 13b.2 confirme le regroupement : **le serveur relaie les résultats partiels**. Dès qu'un agent délégué
   finit alors qu'un autre travaille encore, le serveur transmet son résumé à Michel avec la consigne d'en dire
   l'essentiel en une ou deux phrases et d'annoncer que la suite arrive ; la synthèse finale ne répète pas ce qui a
