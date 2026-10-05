@@ -11,7 +11,9 @@ prompt ne remplace pas le code qui la fait respecter (§3, §5).
 - Chaque étape a un critère « **Fait quand** » : tant qu'il n'est pas vérifié, l'étape n'est pas barrée.
 - Déploiement : `wsl -d Ubuntu -u root -- python3 /opt/michel/deployment/configure-services.py` puis redémarrage des
   services concernés (`openclaw-gateway`, `michel-web`, `michel-tts*`). L'interface se recharge avec Ctrl+F5.
-- Tests : `cd server && node --test test/*.test.mjs` (application) ; les tests d'agents arrivent à l'étape 4.
+- Tests : `cd server && node --test test/*.test.mjs` (application) ; évaluation des agents : `server/evals/run.mjs`
+  (étape 4).
+- Branche : tout se fait sur `main` (la branche de travail `agentic-os` des phases 1 et 2 y est fusionnée).
 
 ## État de départ (1er octobre 2026)
 
@@ -122,27 +124,9 @@ carte `gog gmail send --to … --subject "Test approbation Michel (refus)" --bod
 approuvé : la boîte d'envoi contient exactement un « (accord) » et aucun « (refus) ». Compile : carte
 `docker restart watchless-web` refusée, conteneur non redémarré (heure de démarrage inchangée). 31 tests verts.
 
-## Étape V — Voix : Michel répartit, et reconnaissance / synthèse OpenAI en option
+## Étape V — Voix : fusionnée dans l'étape 13 (décision du 2026-10-05)
 
-Constat de l'utilisateur : il comprend mal, c'est lent, la voix sonne mal ; et devoir dire le prénom est inutile avec
-le push-to-talk. Principe : **mesurer avant de remplacer**, et garder le local en secours (pas de voix sans Internet sinon).
-
-- V.1 Push-to-talk et clavier sans prénom → Michel (`directTo` dans `route()`), qui répartit ; un prénom dit reste un
-  appel direct ; le mains-libres garde le prénom obligatoire (sinon toute conversation de la pièce partirait).
-  Code fait et testé unitairement (32 tests verts) ; à vérifier en vrai après déploiement.
-- V.2 Une ligne `temps <agent>: transcription … · 1re phrase … · 1er son … · total …` par échange dans le journal de
-  `michel-web` : dit où part le temps (reconnaissance, modèle ou synthèse).
-- V.3 Reconnaissance OpenAI (`sttEngine: "openai"`, `gpt-4o-transcribe`), Whisper local en repli.
-- V.4 Synthèse OpenAI (`ttsEngine: "openai"`, `gpt-4o-mini-tts`) : bloc `openai` par voix dans
-  `vendor/voices/voices.json` (voix + ton, consigne « français natif ») ; Supertonic/Piper en repli. Vérifié hors ligne
-  (voix OpenAI simulée, puis panne simulée → moteur local).
-- V.5 Clé `OPENAI_API_KEY` dans `/var/lib/michel/secrets/openai-voice.env` (root, 600), donnée seulement à `michel-web`
-  et `michel-tts` ; le gateway (donc les agents) ne la voit pas.
-- V.6 Mesure de référence en local (V.2) sur ~10 échanges, puis même mesure en OpenAI ; écoute des voix (accent).
-
-**Fait quand** : « quelle heure est-il ? » en push-to-talk, sans prénom, reçoit la réponse de Michel ; les temps local
-et OpenAI sont notés ici ; l'utilisateur a choisi à l'écoute le moteur de synthèse ; une coupure d'Internet laisse la
-voix fonctionner en local.
+Ce qui était fait y est noté, la mesure et le choix du moteur se font dans le banc d'essai de l'étape 13.
 
 ## ~~Étape 3 — Contexte court et délégation sobre (§8, §13)~~ ✅
 
@@ -291,7 +275,7 @@ Première version volontairement étroite : seules les consignes de Michel (`age
   Fait : une seule correction par passe, sous forme « remplacer ce texte exact par celui-ci », vérifiée contre la
   version commitée du fichier.
 - ~~8.3 Implémentation : Michel Construit applique une correction dans son clone (branche `agents/implementer`).~~
-  Fait : branche `amelioration/<date>` partie de `origin/agentic-os` dans son clone, un commit ; le script vérifie
+  Fait : branche `amelioration/<date>` partie de `origin/agentic-os` (aujourd'hui `origin/main`) dans son clone, un commit ; le script vérifie
   qu'un seul fichier a changé et que son contenu est exactement celui attendu.
 - ~~8.4 Évaluation : le jeu de l'étape 4 est rejoué sur la branche ; la correction doit améliorer le cas visé sans
   régression ailleurs.~~
@@ -488,9 +472,9 @@ envoi des conversations à l'extérieur.
 **Fait le 2026-10-04.** Les quatre points ci-dessus ; en prime, l'outil navigateur réparé pour tous les agents (9b.4)
 et le cas D06 qui le surveille. Tests unitaires 48 / 48.
 
-### Étape 10 — Tri des cas d'usage et relecture des attentes
+### ~~Étape 10 — Tri des cas d'usage et relecture des attentes~~ ✅
 
-- 10.1 Relecture ensemble des 40 cas : garder, corriger ou supprimer ; chaque attente dit pourquoi elle est la bonne
+- ~~10.1 Relecture ensemble des 40 cas~~ : garder, corriger ou supprimer ; chaque attente dit pourquoi elle est la bonne
   (une attente est une règle de l'utilisateur, pas une vérité ; ex. M06, jugée « discutable » par Organise).
   Avancement (2026-10-04) : ~~routage~~ relu avec l'utilisateur — R10 (« Michel Commande », ancien nom) gardé, R08
   confirmé (un Michel appelé par son nom répond lui-même), trois cas push-to-talk ajoutés (R17 sans prénom → Michel,
@@ -521,11 +505,13 @@ et le cas D06 qui le surveille. Tests unitaires 48 / 48.
   fournisseur compte comme une issue correcte pour ce cas de sécurité. Les quatre rejoués : réussis. Constat pour
   10.3 : le même cas prend des chemins différents d'une fois à l'autre (S03 : refus d'OpenAI puis, au passage
   suivant, demande d'autorisation refusée).
-- 10.2 Ajout des cas venus de l'usage déjà vécu (bugs, incompréhensions connus).
-- 10.3 Mesure plus fiable : chaque cas joué plusieurs fois, un échec retenu seulement s'il se répète (coût en quota à
-  décider).
+- 10.2 Ajout des cas venus de l'usage déjà vécu → déplacé dans l'étape 11 (11.4), qui collecte justement l'usage.
+- 10.3 Mesure plus fiable (chaque cas joué plusieurs fois) → fusionné avec 15.3.
 
 **Fait quand** : jeu de cas relu et validé par l'utilisateur, nouvelle référence enregistrée.
+
+**Fait le 2026-10-04** (barré le 2026-10-05). 47 cas relus avec l'utilisateur, nouvelle référence 44 / 48 et les quatre
+échecs corrigés ; 10.2 et 10.3 ne conditionnaient pas ce critère et sont rangés dans les étapes 11 et 15.
 
 ### Étape 11 — Retour d'expérience hebdomadaire
 
@@ -535,6 +521,8 @@ et le cas D06 qui le surveille. Tests unitaires 48 / 48.
   l'utilisateur préfère (« plutôt comme ça »), hypothèses sur sa façon de travailler et de développer.
 - 11.3 Séance de travail avec l'utilisateur : chaque point devient rejeté, préférence (mémoire), règle à changer, ou
   nouveau cas de test.
+- 11.4 (ancien 10.2) Cas de test tirés de l'usage déjà vécu (bugs, incompréhensions connus), au premier retour
+  d'expérience.
 - À décider avant : confidentialité (contenu des mails et de l'agenda exclu ou résumé ; modèle qui lit les
   historiques : OpenAI ou local), fréquence, coût en quota.
 
@@ -563,6 +551,45 @@ Retours d'expérience traités au fil de l'eau :
   recommandation quand il y a un choix). Cas M12 ajouté (« meilleur créneau pour sortir en bateau » doit être dit) :
   réussi (« Mardi 6 est le meilleur choix… ») ; M01 reste en une phrase.
 
+### Étape C — Michel lit tout `~/code`, Michel Construit crée des projets (décidée le 2026-10-04)
+
+Demande de l'utilisateur : que Michel connaisse ses autres projets, et que Construit puisse en démarrer un nouveau
+qu'il reprend ensuite lui-même.
+
+- ~~C.1 Michel (et son candidat) lit `~/code` en lecture seule dans `code/` ; les spécialistes ne le voient pas
+  (Michel leur passe l'extrait utile). Fichiers et dossiers secrets (`.env*` sauf modèles, clés, `.git/config`,
+  `secrets/`, `certs/`, `.ssh/`…, et le `config/` de ce projet) rendus inaccessibles par systemd ; la liste est
+  refaite à chaque déploiement (un secret ajouté depuis reste visible jusqu'au suivant).~~
+- ~~C.2 Michel n'a pas d'outil pour lister un dossier (seulement `read` ; le `dir_list` d'OpenClaw exige un nœud
+  appairé) : le premier essai du cas M13 a échoué, Michel devinait `package.json` dans un projet PHP. Le déploiement
+  écrit donc `code-index.md` (chaque projet et le contenu de sa racine, secrets exclus) et la consigne de Michel part
+  de cette carte.~~
+- ~~C.3 Construit crée un nouveau projet dans `michel/<nom>` = `~/code/michel` (git init, tests, commits ; jamais
+  ailleurs dans `~/code`). Deux défauts trouvés au test et corrigés : l'outil d'écriture d'OpenClaw, qui retraduit le
+  chemin du bac à sable vers la source Docker, butait sur `/home` (`ProtectHome`) → montage
+  `/var/lib/michel/projets` (comme `/opt/michel` pour le dépôt) ; il crée les fichiers en mode 600, ce qui annule
+  l'ACL de l'utilisateur, et git refusait un dépôt appartenant à `michel` → `michel-projets.timer` (root, chaque
+  minute, sans suivre les liens) rend les fichiers à l'utilisateur, Construit garde l'écriture par l'ACL, et son git
+  (bac à sable seulement) accepte un dépôt d'un autre propriétaire.~~
+- C.4 Vérification des secrets masqués dans la vue de Michel : **à faire par l'utilisateur** (Claude Code a refusé
+  de sonder des fichiers d'identifiants, à raison) : `wsl -d Ubuntu -u root -- bash -c 'pid=$(systemctl show -p
+  MainPID --value openclaw-gateway); nsenter -t $pid -m -- runuser -u michel -- head -c1
+  /var/lib/michel/.openclaw/workspace/code/<projet>/.env'` doit répondre « Permission denied ».
+- Constaté pendant C.3, à traiter (étape 15) : dans son bac à sable, Construit a lancé `pwd; ls …`, hors de sa liste
+  autorisée (`node --test`, `git -C`). La liste ne semble s'appliquer qu'aux commandes sur l'hôte : le bac à sable
+  (sans réseau ni secret) est la vraie barrière, mais Construit peut y effacer un projet de `~/code/michel` ou de son
+  clone. Aussi : il nomme la branche d'un nouveau projet `agents/implementer` (consigne prévue pour son clone).
+
+**Fait quand** : Michel répond sur un autre projet en le lisant lui-même ; un secret de `~/code` lui reste
+inaccessible ; un projet créé par Construit est lisible, modifiable et utilisable avec git par l'utilisateur, et
+Construit peut encore y travailler ensuite.
+
+Avancement (2026-10-05) : déployé ; tests unitaires 48 / 48 ; M13 « quel framework dans Mykanban ? » réussi (Symfony,
+sans délégation) avec M01 et M03 en non-régression (3 / 3) ; deux cas temporaires (retirés ensuite avec le projet
+d'essai) : Construit crée `essai-construit` (add + test, commit), le timer le rend à l'utilisateur en moins d'une
+minute (lecture, écriture, `git status`, `node --test` 2 / 2 sous son compte), puis Construit y ajoute `sub` et
+commite. Reste C.4.
+
 ---
 
 ## Phase 3 — Optimisation et refacto (décidée le 2026-10-04)
@@ -583,10 +610,52 @@ Mesure de départ (47 échanges vocaux réels, 7 jours) : transcription 0,4 s ; 
   Leaderboard, Artificial Analysis, TTSDS2) servent à choisir les candidats, pas à décider : ils mesurent surtout
   l'anglais, sur d'autres machines.
 - 13.2 L'utilisateur écoute et choisit ; une même voix pour tous les Michel est acceptée.
+  Déjà choisi à l'écoute, avant le banc (2026-10-04 au soir) : Michel parle avec **M4** (`fr-m-direct`, Supertonic,
+  sans effet), timbre partagé avec Michel Écrit ; M5 (`fr-m-grave`) n'a été sa voix que quelques heures. Le banc dira
+  quel moteur et quel réglage d'étapes garder pour cette voix.
 - 13.3 Première phrase courte demandée aux agents (la voix démarre pendant que la suite se synthétise).
 - 13.4 Les moteurs écartés sont retirés (code, services, documentation) ; un moteur de secours est gardé.
+- Repris de l'ancienne étape V (voix, session parallèle d'octobre), fusionnée ici le 2026-10-05 :
+  - ~~V.1 Push-to-talk et clavier sans prénom → Michel (`directTo` dans `route()`), qui répartit ; un prénom dit reste
+    un appel direct ; le mains-libres garde le prénom obligatoire.~~ Vérifié par les cas R17 / R18 (étape 10) et par
+    l'utilisateur.
+  - ~~V.2 Ligne `temps <agent>: transcription … · 1re phrase … · 1er son … · total …` par échange dans le journal de
+    `michel-web`.~~ Elle fournit la mesure de départ ci-dessus (47 échanges).
+  - V.3–V.5 Code en place, jamais mesuré en vrai : reconnaissance (`sttEngine: "openai"`, `gpt-4o-transcribe`) et
+    synthèse OpenAI (`ttsEngine: "openai"`, `gpt-4o-mini-tts`, bloc `openai` par voix dans `voices.json`), moteur
+    local en repli (panne simulée vérifiée) ; clé dans `/var/lib/michel/secrets/openai-voice.env`, donnée seulement à
+    `michel-web` et `michel-tts`. La clé API n'a pas de crédit (constat du 2026-10-03) : à décider avant de mettre
+    OpenAI dans le banc 13.1, qui remplace V.6 (mesure local / OpenAI, écoute).
 
 **Fait quand** : premier son nettement plus tôt (mesuré sur des échanges réels), intelligibilité au moins égale.
+
+### Étape 13 bis — Michel dit toutes ses réponses, et les résultats au fil de l'eau (retours du 2026-10-04)
+
+Pas une refacto : cette étape change le comportement, avec un cas d'évaluation pour chaque point.
+
+- 13b.1 **Michel ne dit à voix haute qu'une réponse sur deux** (retour de l'utilisateur). Cause inconnue. Reproduire
+  dans une session d'évaluation (jamais la conversation vocale de l'utilisateur), puis comparer, pour chaque réponse,
+  les événements du gateway (`chat` delta/final, `runId`) et ce que le serveur en fait. Pistes à vérifier, aucune
+  confirmée : rattachement d'une réponse au mauvais échange (`runFor`, `server/server.mjs`), réponse ignorée parce
+  que son `runId` est déjà dans `finishedRuns`, échange clos par `finishRun` avant sa réponse, phrase coupée par
+  l'interruption de la voix (`stopSpeech`) ou par la file de lecture côté page. Corriger la cause, pas le symptôme.
+  À faire avant 13b.3, qui demande à Michel de parler plusieurs fois.
+- 13b.2 **Mesurer pourquoi Michel attend le plus lent de ses agents** (récapitulatif : Michel Écrit répond bien
+  avant Michel Explore, mais Michel ne dit rien avant la fin d'Explore). Cause probable, à confirmer : OpenClaw
+  regroupe les agents lancés dans un même tour de Michel et ne le réveille qu'une fois tout le lot fini (« the frozen
+  batch waits for its own children… », page *Sub-agent announce* de la documentation, sans option documentée pour
+  un rendu agent par agent) ; les consignes de Michel (« wait for the completion announce ») vont dans le même sens.
+  Le serveur vocal, lui, sait déjà dire une réponse non sollicitée (`runFor`). Mesure : heures de fin de chaque
+  agent et heure de la réponse de Michel, sur un récapitulatif mails + météo en session d'évaluation.
+- 13b.3 Si 13b.2 confirme le regroupement : **le serveur relaie les résultats partiels**. Dès qu'un agent délégué
+  finit alors qu'un autre travaille encore, le serveur transmet son résumé à Michel avec la consigne d'en dire
+  l'essentiel en une ou deux phrases et d'annoncer que la suite arrive ; la synthèse finale ne répète pas ce qui a
+  déjà été dit. Écartés : Michel qui lit lui-même les mails (le contenu d'un mail n'est pas fiable et Michel tient
+  les outils de toute l'équipe) ; un simple signal « Écrit a fini » (sans contenu), gardé en repli.
+
+**Fait quand** : sur dix échanges réels d'affilée, chaque réponse de Michel est dite à voix haute ; sur le cas
+récapitulatif mails + météo, l'essentiel des mails est dit avant la fin d'Explore, et la réponse finale ne le répète
+pas.
 
 ### Étape 14 — Une commande `michel` et du ménage (A3, A4, C3)
 
@@ -602,8 +671,11 @@ Mesure de départ (47 échanges vocaux réels, 7 jours) : transcription 0,4 s ; 
 
 - 15.1 Intégration continue GitHub : tests unitaires du serveur et de la lecture des nombres à chaque push.
 - 15.2 Dépendances Python figées (`requirements.txt`), installation reproductible.
-- 15.3 Évaluation : option pour rejouer les cas en échec (séparer le hasard d'un vrai défaut, 10.3).
+- 15.3 Évaluation : option pour rejouer les cas en échec, un échec retenu seulement s'il se répète (séparer le hasard
+  d'un vrai défaut, ancien 10.3 ; coût en quota à décider).
 - 15.4 Jeton du gateway rangé hors de `openclaw.json` (SecretRefs).
+- 15.5 Commandes des agents en bac à sable (Construit, Vérifie) : confirmer si la liste autorisée s'y applique
+  (constat de l'étape C : non) et, sinon, la faire respecter ou documenter la limite.
 
 ### Étape 16 — Architecture (C2, puis C1, par petites étapes)
 
