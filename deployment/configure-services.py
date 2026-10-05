@@ -352,8 +352,13 @@ for agent_id, spec in tool_agents.items():
     owned_write(agent_workspace / 'SOUL.md', spec['soul'])
     # A run delegated by Michel only receives AGENTS.md (OpenClaw leaves SOUL.md out of sub-agent context): the working
     # rules (which commands, approvals) must be there too, or a delegated Écrit does not know it has to use gog.
+    # Short delegated results: Michel waits for the slowest teammate before speaking, and writing a 3 600-character
+    # report took Écrit 32 s (plan 13b.2).
     owned_write(agent_workspace / 'AGENTS.md', '# Rôle et outils\n\n' + spec['soul'] + '\nCes règles valent aussi quand Michel te '
-                'délègue une tâche : réponds-lui alors en français avec le résultat, sans rien inventer.\n')
+                'délègue une tâche : réponds-lui alors en français avec le résultat, sans rien inventer, et court (1 000 '
+                'caractères au plus, car Michel en fait une réponse parlée pendant que l’utilisateur attend) : chaque '
+                'élément demandé sur une ligne (un mail : expéditeur, objet, l’essentiel ; un événement : date, heure, '
+                'titre), sans introduction ni conseil non demandé.\n')
 contract = (team_dir / 'CONTRACT.md').read_text()
 profiles = {**team, **tool_agents}
 roster = '\n'.join(f'- `{agent_id}` ({profiles[agent_id]["name"]}): {profiles[agent_id]["description"]}' for agent_id in delegates)

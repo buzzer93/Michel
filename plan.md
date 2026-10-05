@@ -670,6 +670,25 @@ Pas une refacto : cette étape change le comportement, avec un cas d'évaluation
   events for ALL required children… », une consigne du runtime qui l'emporte sur la nôtre (le candidat a appelé
   `sessions_yield` malgré l'interdiction écrite). Conclusion : 13b.3 (relais par le serveur) reste la voie ; levier
   complémentaire mesuré : des rapports d'agents plus courts avancent d'autant le réveil de Michel.
+- 13b.3a **Rapports d'agents plus courts** (levier mesuré en 13b.2, choisi par l'utilisateur avant le relais) :
+  règle de longueur dans `agents/CONTRACT.md` (résultat complet sous ~1 500 caractères, chaque élément demandé sur une
+  ligne, rien répété) et dans les consignes déléguées d'Écrit et Compile (`configure-services.py`, 1 000 caractères).
+  Déployé le 2026-10-05. Récap « mails non lus + météo de demain », même script de chronologie :
+  avant, rapports 3 567 / 2 557 car, Michel réveillé à +85 s, réponse finie à +112 s ; après (un passage valide),
+  973 / 1 322 car (Écrit a bien lu les mails : 4 éléments), réveil à **+45 s**, réponse finie à **+58 s**.
+  **À confirmer** quand la fenêtre ChatGPT sera revenue : un second passage, et la non-régression M03, M04, M09,
+  M12, D03 (le détail des réponses, cf. le retour « trop bref pour un récapitulatif »). Leçons de la mesure : deux
+  passages rapprochés ont déclenché le **quota par minute de Gmail** (403) et ont « réussi » avec des rapports vides
+  (cas trop indulgent, rejoué avec un motif d'échec) ; la série de passages a vidé la fenêtre de 5 h de ChatGPT
+  (Michel sur Claude ensuite) : espacer les passages et en limiter le nombre. Au passage : `sleep 60` tenté par Écrit
+  a bien été arrêté (hors liste, autorisation demandée puis refusée).
+- 13b.4 **Réponse après délégation sans bloc `<voix>`** (constat du 2026-10-05) : dans les vraies conversations,
+  8 réponses sur 33 qui suivent un résultat d'agent (`subagent_settle`) n'ont pas de bloc `<voix>`, et 2 sur 2 après
+  `subagent_announce` (en évaluation : 1 sur 43). Le serveur passe alors en secours : quelques phrases dites, et
+  seulement une fois toute la réponse écrite. Cause probable, à confirmer : le message de réveil d'OpenClaw ne porte
+  pas la consigne vocale (`voiceBrief`, jointe aux seuls messages de l'utilisateur). Piste : la règle « toute réponse
+  commence par `<voix>`, y compris après le résultat d'un agent » dans les consignes de Michel, mesurée sur ce même
+  compte.
 - 13b.3 Si 13b.2 confirme le regroupement : **le serveur relaie les résultats partiels**. Dès qu'un agent délégué
   finit alors qu'un autre travaille encore, le serveur transmet son résumé à Michel avec la consigne d'en dire
   l'essentiel en une ou deux phrases et d'annoncer que la suite arrive ; la synthèse finale ne répète pas ce qui a
