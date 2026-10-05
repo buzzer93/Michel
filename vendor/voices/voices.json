@@ -91,7 +91,7 @@
         "speaker_id": null,
         "length_scale": 0.96
       },
-      "note": "Homme direct : M4 (F0 ~124 Hz, timbre sombre). Supertonic 3 depuis le 2026-09-24. Avant (bloc pockettts conserve) : Homme direct (F0 ~123 Hz). Pocket TTS (Kyutai), timbre clone de neo_nm.wav (LibriVox, domaine public)",
+      "note": "Homme direct : M4 (F0 ~124 Hz, timbre sombre). Voix de Michel et de Michel Écrit depuis le 2026-10-04 au soir (choix de l utilisateur : M4 sans effet, timbre partagé). Supertonic 3 depuis le 2026-09-24. Avant (bloc pockettts conserve) : Homme direct (F0 ~123 Hz). Pocket TTS (Kyutai), timbre clone de neo_nm.wav (LibriVox, domaine public)",
       "openvoice": {
         "ref": "neo_nm.wav",
         "speed": 1.02
@@ -155,7 +155,7 @@
         "speaker_id": null,
         "length_scale": 1.06
       },
-      "note": "Homme grave : M5 (F0 ~86 Hz, le plus grave). Voix de Michel et de Michel Organise depuis le 2026-10-04 (choix de l utilisateur : timbre partagé). Supertonic 3 depuis le 2026-09-24. Avant (bloc pockettts conserve) : Homme grave (F0 ~104 Hz), cadence de reference. Pocket TTS (Kyutai), timbre clone de morpheus_mk.wav (LibriVox, domaine public)",
+      "note": "Homme grave : M5 (F0 ~86 Hz, le plus grave). Voix de Michel Organise ; aussi de Michel quelques heures le 2026-10-04 (remplacée par fr-m-direct, M4 sans effet, à la demande de l utilisateur). Supertonic 3 depuis le 2026-09-24. Avant (bloc pockettts conserve) : Homme grave (F0 ~104 Hz), cadence de reference. Pocket TTS (Kyutai), timbre clone de morpheus_mk.wav (LibriVox, domaine public)",
       "openvoice": {
         "ref": "morpheus_mk.wav",
         "speed": 0.94
