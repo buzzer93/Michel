@@ -152,7 +152,8 @@ export function historyEntries(messages = []) {
     if (m?.role === "user") {
       if (Array.isArray(m.content) && m.content.some((p) => p?.type === "tool_result")) continue;
       const text = textOf(m.content).replace(BRIEF, "").trim();
-      if (text) out.push({ who: "user", ts, text });
+      // A teammate's result relayed by the server (tools.mjs, RELAY_MARK) is not something the user said.
+      if (text && !text.startsWith("[Relais du serveur vocal")) out.push({ who: "user", ts, text });
     } else if (m?.role === "assistant") {
       const raw = textOf(m.content).trim();
       if (!raw || SILENT.test(raw)) continue;

@@ -695,7 +695,18 @@ Pas une refacto : cette étape change le comportement, avec un cas d'évaluation
   délégation avec leur bloc `<voix>` sur les passages de la reprise (X03 ×2, M03, M04, M09, M12). Échantillon
   d'évaluation, où le défaut était déjà rare (1 sur 43) : le critère est le **même comptage sur les vraies
   conversations** après quelques jours d'usage (script de comptage par provenance, 8 sur 33 sans `<voix>` avant).
-- 13b.3 Si 13b.2 confirme le regroupement : **le serveur relaie les résultats partiels**. Dès qu'un agent délégué
+- 13b.3 Si 13b.2 confirme le regroupement : **le serveur relaie les résultats partiels**.
+  Faisabilité vérifiée le 2026-10-05 au soir (script isolé, session de test) : un message envoyé à Michel pendant
+  qu'il attend son lot obtient **un tour immédiat** (relais à +26 s, tour à +27 s, réponse vocale avec « la suite
+  arrive » à +44 s, avant la fin d'Explore à +48 s) ; Michel se remet ensuite en attente et la fin du lot arrive en
+  `subagent_announce` (réponse à +57 s). Implémenté : `refreshExternalActivity` note la session de chaque délégué
+  (vérification toutes les 2 s tant qu'une délégation tourne) ; quand l'un finit alors qu'un autre du même agent
+  travaille encore (`relaysFor`), `relayPartial` lit son résultat et l'envoie à Michel (`relayMessage` : marqué
+  « pas un message de l'utilisateur », résultat encadré comme une donnée) ; la réponse est dite comme les autres ; le
+  code ignore les balises mémoire / règle de cette réponse (le texte vient d'un mail ou d'une page) ; le relais
+  n'apparaît pas dans l'historique. Tests unitaires 50 / 50. **Bout-en-bout à constater au premier vrai récap**
+  (jamais testé par la conversation vocale) : ligne `relais : résultat de … transmis à Michel` dans le journal de
+  `michel-web`, essentiel des mails dit avant la fin d'Explore, synthèse finale sans répétition. Dès qu'un agent délégué
   finit alors qu'un autre travaille encore, le serveur transmet son résumé à Michel avec la consigne d'en dire
   l'essentiel en une ou deux phrases et d'annoncer que la suite arrive ; la synthèse finale ne répète pas ce qui a
   déjà été dit. Écartés : Michel qui lit lui-même les mails (le contenu d'un mail n'est pas fiable et Michel tient

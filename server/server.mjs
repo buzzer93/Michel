@@ -13,7 +13,7 @@ import { GatewayClient } from "@openclaw/gateway-client";
 import { PROTOCOL_VERSION } from "@openclaw/gateway-protocol/version";
 import { route } from "./router.mjs";
 import { ReplyStream, voiceBrief, cleanForSpeech, extractWindows, wantsWindow, historyEntries, serialQueue } from "./speech.mjs";
-import { describeTool, spawnTarget, activeSubagents } from "./tools.mjs";
+import { describeTool, spawnTarget, activeSubagents, relaysFor, relayMessage } from "./tools.mjs";
 import { BrowserWindows } from "./browser.mjs";
 import { loadAgents, readTeamTaglines, delegationTargets, buildSttPrompt, assignVoices, readVoiceIds, slug, PALETTE } from "./agents.mjs";
 import { SysSampler } from "./sysstats.mjs";
@@ -187,15 +187,50 @@ async function refreshExternalActivity() {
       if (st.external !== n) { st.external = n; pushAgent(id); }
     }
     const live = activeSubagents(res.sessions);
+    for (const s of res.sessions ?? []) {
+      const d = delegations.get(/^agent:([^:]+):subagent:/.exec(s.key ?? "")?.[1]);
+      if (d && (s.hasActiveRun ?? s.sessionInfo?.hasActiveRun)) d.childKey = s.key;   // where its result will be read
+    }
+    const ended = [];
     for (const [target, d] of delegations) {
       // A few seconds' grace: the child session may not be listed yet right after the spawn call.
       if (live.has(target) || Date.now() - d.since < 5000) continue;
       delegations.delete(target);
       broadcast({ t: "delegate", id: d.from, to: target, name: agentName(target), state: "done" });
+      ended.push([target, d]);
     }
+    for (const r of relaysFor(ended, delegations)) relayPartial(r.from, r.target, ended.find(([t]) => t === r.target)[1].childKey, r.others);
   } catch (e) { debug("sessions.list:", e?.message); }
 }
 setInterval(refreshExternalActivity, 8000).unref();
+// While a delegation runs, its end is checked every 2 s: a finished teammate's result is relayed without delay.
+setInterval(() => { if (delegations.size) refreshExternalActivity(); }, 2000).unref();
+
+// Plan 13b.3: OpenClaw wakes Michel only when every teammate of a batch has finished (measured: he waited 13 s for the
+// slower one, more when one is much slower). A teammate that finishes while another still works has its result handed
+// to Michel at once, and his reply is spoken like any other.
+async function relayPartial(from, target, childKey, others) {
+  const clientId = lastClientFor.get(from) ?? clients.keys().next().value;
+  if (!childKey || !clientId || !gatewayUp) return;
+  let run = null;
+  try {
+    const h = await gateway.request("chat.history", { sessionKey: childKey, limit: 6 }, { timeoutMs: 15000 });
+    const report = (h?.messages ?? []).filter((m) => m.role === "assistant")
+      .map((m) => (Array.isArray(m.content) ? m.content : []).filter((c) => c.type === "text").map((c) => c.text).join("").trim())
+      .filter(Boolean).at(-1);
+    if (!report) return;
+    const runId = `michel-relais-${randomUUID()}`;
+    run = newRun(from, clientId, runId);
+    run.relay = true;
+    run.request = `(résultat de ${agentName(target)} relayé)`;
+    setStatus(from, "thinking");
+    await gateway.request("chat.send", { sessionKey: sessionKeyFor(from), message: relayMessage(agentName(target), others.map(agentName), report), idempotencyKey: runId }, { timeoutMs: 60000 });
+    log(`relais : résultat de ${agentName(target)} transmis à ${agentName(from)} (${others.map(agentName).join(", ")} encore en cours)`);
+  } catch (e) {
+    log("relais:", e?.message);
+    if (run) { runs.delete(run.runId); agentState.get(from).runs--; setStatus(from, "idle"); }
+  }
+}
 
 function pushAgent(id) {
   const st = agentState.get(id);
@@ -331,7 +366,8 @@ function onGatewayEvent(ev) {
     const by = answeredBy(p.message);
     if (by) { answeredModels.set(run.agentId, by); run.model = `${by.provider}/${by.model}`; }
     // Queued only: nothing changes Michel's memory or instructions before the user's click (self-edit.mjs).
-    if (p.state === "final") { try { queueSelfEdits(run); } catch (e) { log("demandes de modification :", e?.message); } }
+    // Never for the answer to a relayed result: its text comes from a mail or a page, not from the user.
+    if (p.state === "final" && !run.relay) { try { queueSelfEdits(run); } catch (e) { log("demandes de modification :", e?.message); } }
     sendDetail(run, true);
     // Windows only when the user asked for one in this utterance: an agent never opens them on its own.
     if (run.allowWindow) for (const w of extractWindows(run.stream.full)) browserWins.open({ clientId: run.clientId, key: `browser:${run.agentId}:${w.url}`, url: w.url, agentId: run.agentId, title: w.title }).catch((e) => log("navigateur:", e.message));
