@@ -676,8 +676,11 @@ Pas une refacto : cette étape change le comportement, avec un cas d'évaluation
   Déployé le 2026-10-05. Récap « mails non lus + météo de demain », même script de chronologie :
   avant, rapports 3 567 / 2 557 car, Michel réveillé à +85 s, réponse finie à +112 s ; après (un passage valide),
   973 / 1 322 car (Écrit a bien lu les mails : 4 éléments), réveil à **+45 s**, réponse finie à **+58 s**.
-  **À confirmer** quand la fenêtre ChatGPT sera revenue : un second passage, et la non-régression M03, M04, M09,
-  M12, D03 (le détail des réponses, cf. le retour « trop bref pour un récapitulatif »). Leçons de la mesure : deux
+  ~~À confirmer~~ **Confirmé le 2026-10-05 au soir** (fenêtre ChatGPT revenue, aucun passage en secours) : deux
+  passages de plus, rapports 1 017 / 1 399 et 902 / 1 393 car, Michel réveillé à +65 s et +48 s (contre +85 s),
+  réponse finie à +84 s et +62 s (contre +112 s), Écrit lit bien les mails (7 commandes, 4 éléments) ; non-régression
+  M03, M04, M09, M12, D03 : **5 / 5** (`docs/evals/2026-10-05T16-24-non-regression-13b.md`), réponses toujours
+  détaillées (M12 : 1 600 car, recommandation dite). Leçons de la mesure : deux
   passages rapprochés ont déclenché le **quota par minute de Gmail** (403) et ont « réussi » avec des rapports vides
   (cas trop indulgent, rejoué avec un motif d'échec) ; la série de passages a vidé la fenêtre de 5 h de ChatGPT
   (Michel sur Claude ensuite) : espacer les passages et en limiter le nombre. Au passage : `sleep 60` tenté par Écrit
@@ -688,7 +691,10 @@ Pas une refacto : cette étape change le comportement, avec un cas d'évaluation
   seulement une fois toute la réponse écrite. Cause probable, à confirmer : le message de réveil d'OpenClaw ne porte
   pas la consigne vocale (`voiceBrief`, jointe aux seuls messages de l'utilisateur). Piste : la règle « toute réponse
   commence par `<voix>`, y compris après le résultat d'un agent » dans les consignes de Michel, mesurée sur ce même
-  compte.
+  compte. Règle ajoutée et déployée le 2026-10-05 au soir (`agents/main/AGENTS.md`) : **6 réponses sur 6** après
+  délégation avec leur bloc `<voix>` sur les passages de la reprise (X03 ×2, M03, M04, M09, M12). Échantillon
+  d'évaluation, où le défaut était déjà rare (1 sur 43) : le critère est le **même comptage sur les vraies
+  conversations** après quelques jours d'usage (script de comptage par provenance, 8 sur 33 sans `<voix>` avant).
 - 13b.3 Si 13b.2 confirme le regroupement : **le serveur relaie les résultats partiels**. Dès qu'un agent délégué
   finit alors qu'un autre travaille encore, le serveur transmet son résumé à Michel avec la consigne d'en dire
   l'essentiel en une ou deux phrases et d'annoncer que la suite arrive ; la synthèse finale ne répète pas ce qui a
