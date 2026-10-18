@@ -4,7 +4,7 @@ Parlez à vos agents [OpenClaw](https://github.com/openclaw/openclaw) depuis un 
 haute, avec sa propre voix, affiche le détail à l'écran, et confie au besoin la demande à l'un des six autres Michel
 de son équipe (mail et agenda, GitHub et Docker, recherche web, plans, vérification, code).
 
-![Michel répond à voix haute : l'orbe suit sa voix, les sous-titres s'éclairent mot à mot, le détail de la réponse s'ouvre dans une fenêtre flottante et le rail montre l'état de chaque agent.](docs/screenshot.jpg)
+![Michel répond à voix haute après avoir confié la recherche à Michel Explore : les sous-titres s'éclairent mot à mot, le tableau détaillé s'ouvre dans une fenêtre flottante, et les panneaux montrent l'équipe, la session, le modèle utilisé et la machine.](docs/screenshot.jpg)
 
 La reconnaissance et la synthèse vocales tournent **sur votre machine**. Les réponses viennent des modèles
 d'OpenAI, puis d'Anthropic (Claude) en secours, puis d'un modèle local (Qwen) en dernier recours.
@@ -167,8 +167,10 @@ Une clé API Anthropic (facturée à l'usage) lèverait ces limites ; elle n'est
 
 **Autorisations.** Lire, chercher et préparer se fait sans demander. Envoyer ou répondre à un mail, mettre à la
 corbeille, créer ou modifier un événement, écrire sur GitHub, démarrer ou arrêter un conteneur affiche une carte avec
-la commande exacte : **Autoriser** (une fois) ou **Refuser** ; sans réponse, c'est refusé. Une commande contenant des
+la commande exacte : **Approuver** (une fois) ou **Refuser** ; sans réponse, c'est refusé. Une commande contenant des
 caractères de chaînage (`|`, `&`, `;`, `>`…) est refusée d'office, même entre guillemets.
+
+![Carte d'autorisation : Michel Écrit veut envoyer un mail ; la carte montre la commande exacte (destinataire, sujet et texte), avec Refuser et Approuver.](docs/screenshot-approval.jpg)
 
 **Mémoire.** Rien de ce que dit Michel ne modifie sa mémoire ou ses consignes sans votre clic :
 
