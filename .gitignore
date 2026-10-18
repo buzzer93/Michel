@@ -25,6 +25,8 @@ config/agents.json
 web/avatars/*.jpg
 # journal de décisions : local, hors dépôt (le dépôt deviendra public)
 DECISIONS.md
+# sources de réflexion (recherche, vidéos de tiers) : locales, hors dépôt
+dossier_agentic_os/
 # Windows metadata copied along with downloaded files
 *:Zone.Identifier
 # avatar source images and local config backups
