@@ -1,6 +1,6 @@
 # Plan d'amélioration — Michel et son équipe (inspiré du guide « Agentic OS »)
 
-Source : [dossier_agentic_os/guide_agentic_os.md](dossier_agentic_os/guide_agentic_os.md) (les § renvoient à ses sections).
+Source : guide de recherche « Agentic OS » (dossier local `dossier_agentic_os/`, hors dépôt ; les § renvoient à ses sections).
 Idée directrice du guide : **le modèle propose, le code contrôle et garde la trace** ; une règle écrite dans un
 prompt ne remplace pas le code qui la fait respecter (§3, §5).
 
@@ -751,6 +751,25 @@ pas.
 
 Nouvelle collecte de ressources par l'utilisateur sur l'IA agentique, la synthèse vocale et la transcription ; les
 mesures de la phase 3 servent de point de comparaison.
+
+Pistes tirées de démos d'« AI Operators » (Levco, réseaux sociaux, analysées le 2026-10-18 ; dossier local, hors
+dépôt). Ce sont des démos marketing sur des données fictives : on retient des principes, pas des preuves. Michel reste
+un assistant personnel ; l'idée commune est de **ne montrer que ce qui demande encore l'attention de l'utilisateur**.
+
+- 4.1 **Bilan qui commence par ce qui t'attend** : sur un récap, Michel dit d'abord ce qui demande une action de
+  l'utilisateur, puis résume le reste en une phrase. Consigne + cas d'évaluation. Coût faible.
+- 4.2 **Le « pourquoi » sur la carte d'autorisation** (« destinataire externe », « modifie l'agenda ») pour décider
+  d'un coup d'œil. À vérifier : le champ `reason` de la demande (`approvals.mjs`) peut-il le porter. Coût faible.
+- 4.3 **Clarifier avant d'agir, pour toute action à effet** : une seule question quand une information essentielle
+  manque, au lieu de deviner (existe pour un rendez-vous, cas T06 ; à généraliser). Consigne + cas. Coût faible.
+- 4.4 **« Trie mes mails », réponses prêtes en brouillon** : Écrit classe les non lus et prépare les réponses en
+  brouillons Gmail, une file que l'utilisateur relit quand il veut (la carte d'autorisation expire en 2 min, elle
+  ne peut pas servir de file). Aucune nouvelle permission (`drafts create|update` déjà autorisés) ; ranger dans des
+  libellés en demanderait une. Coût moyen.
+- 4.5 **« Préviens-moi si X n'a pas répondu d'ici vendredi »** : un rappel (étape 7) qui vérifie d'abord le fil
+  avec Écrit et ne sonne que sans réponse. Coût plus élevé.
+
+Ordre conseillé : 4.1 et 4.3 d'abord (consignes seules, mesurables), 4.4 ensuite comme étape à part entière.
 
 ---
 
